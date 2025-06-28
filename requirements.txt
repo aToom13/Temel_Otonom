@@ -1,0 +1,9 @@
+Flask>=2.3.2
+opencv-python>=4.8.0
+pyserial>=3.5
+pytest>=7.4.0
+ultralytics>=8.0.0
+ruff
+black
+# pyzed  # Zed SDK is usually installed separately, not via pip. Uncomment if you have a pip-installable version.
+PyQt5>=5.15.0

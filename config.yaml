@@ -1,0 +1,24 @@
+# Dursun Projesi Konfigürasyon Dosyası
+# Tüm sabitler ve parametreler buradan yönetilir.
+
+serial:
+  port: COM3  # Windows için örnek port
+  baud_rate: 9600
+
+models:
+  yolo_traffic_sign: models/tabela.pt
+  yolo_lane: models/serit.pt
+  yolo_seg: models/yolov8n-seg.pt
+  yolo_default: yolov8n.pt
+
+camera:
+  zed_resolution: HD720
+  zed_fps: 30
+  fallback_webcam_index: 0
+
+thresholds:
+  depth_obstacle_mm: 2000
+
+logging:
+  level: INFO
+  file: logs/dursun.log
