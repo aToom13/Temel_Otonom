@@ -14,6 +14,7 @@ from modules.road_processor import RoadProcessor
 from modules.direction_controller import DirectionController
 from modules.arduino_cominicator import ArduinoCommunicator
 from modules.enhanced_camera_manager import EnhancedCameraManager
+from modules.lidar_processor import RPLidarA1Processor
 
 # Import performance and safety modules
 from core.performance.memory_manager import memory_manager
@@ -45,6 +46,7 @@ logger = logging.getLogger(__name__)
 
 # Global variables for sharing data between threads
 camera_manager = None
+lidar_processor = None
 processed_frame = None
 processed_frame_lock = threading.Lock()
 detection_results = {}
@@ -53,6 +55,8 @@ lane_results = {}
 lane_results_lock = threading.Lock()
 obstacle_results = {}
 obstacle_results_lock = threading.Lock()
+lidar_results = {}
+lidar_results_lock = threading.Lock()
 direction_data = {}
 direction_data_lock = threading.Lock()
 arduino_status = "Disconnected"
@@ -151,6 +155,51 @@ def create_arduino_health_callback():
     
     return check_arduino_health
 
+def create_lidar_health_callback():
+    """LiDAR sağlık kontrolü callback'i oluştur"""
+    def check_lidar_health():
+        if lidar_processor:
+            lidar_status = lidar_processor.get_status()
+            
+            if lidar_status['is_connected'] and lidar_status['is_scanning']:
+                return HealthStatus(
+                    component=SystemComponent.PROCESSING,  # LiDAR is part of processing
+                    status=SafetyState.SAFE,
+                    message="LiDAR operating normally",
+                    timestamp=time.time(),
+                    metrics={
+                        "scan_frequency": lidar_status['scan_frequency'],
+                        "obstacle_count": lidar_status['obstacle_count'],
+                        "scan_count": lidar_status['scan_count']
+                    }
+                )
+            elif lidar_status['is_connected']:
+                return HealthStatus(
+                    component=SystemComponent.PROCESSING,
+                    status=SafetyState.WARNING,
+                    message="LiDAR connected but not scanning",
+                    timestamp=time.time(),
+                    metrics=lidar_status
+                )
+            else:
+                return HealthStatus(
+                    component=SystemComponent.PROCESSING,
+                    status=SafetyState.WARNING,
+                    message="LiDAR not connected",
+                    timestamp=time.time(),
+                    metrics=lidar_status
+                )
+        
+        return HealthStatus(
+            component=SystemComponent.PROCESSING,
+            status=SafetyState.WARNING,
+            message="LiDAR processor not initialized",
+            timestamp=time.time(),
+            metrics={}
+        )
+    
+    return check_lidar_health
+
 def create_processing_health_callback():
     """İşleme sağlık kontrolü callback'i oluştur"""
     def check_processing_health():
@@ -247,6 +296,40 @@ def camera_stream_thread():
         except Exception as e:
             logger.error(f"Camera stream error: {e}")
             time.sleep(0.1)
+
+# --- LiDAR Processing Thread ---
+def lidar_processor_thread():
+    global lidar_processor, lidar_results
+    
+    lidar_processor = RPLidarA1Processor()
+    
+    # Try to connect to LiDAR
+    if lidar_processor.connect():
+        logger.info("LiDAR connected successfully")
+        
+        # Start scanning
+        if lidar_processor.start_scanning():
+            logger.info("LiDAR scanning started")
+        else:
+            logger.error("Failed to start LiDAR scanning")
+            return
+    else:
+        logger.warning("LiDAR not connected, continuing without LiDAR")
+        return
+    
+    while True:
+        try:
+            # Get LiDAR data for visualization and processing
+            lidar_data = lidar_processor.get_scan_data_for_visualization()
+            
+            with lidar_results_lock:
+                lidar_results = lidar_data
+            
+            time.sleep(0.1)  # 10 Hz
+            
+        except Exception as e:
+            logger.error(f"LiDAR processing error: {e}")
+            time.sleep(0.5)
 
 # --- Enhanced Processing Threads ---
 def yolo_processor_thread():
@@ -404,7 +487,7 @@ def _basic_obstacle_detection(rgb_frame):
     }
 
 def road_processor_thread():
-    global detection_results, lane_results, obstacle_results, direction_data, imu_data
+    global detection_results, lane_results, obstacle_results, lidar_results, direction_data, imu_data
     
     road_processor = RoadProcessor()
     
@@ -418,6 +501,8 @@ def road_processor_thread():
                 lanes = lane_results.copy()
             with obstacle_results_lock:
                 obs = obstacle_results.copy()
+            with lidar_results_lock:
+                lidar = lidar_results.copy()
             with imu_data_lock:
                 imu = imu_data.copy()
             
@@ -425,6 +510,7 @@ def road_processor_thread():
                 "detections": det,
                 "lanes": lanes,
                 "obstacles": obs,
+                "lidar": lidar,
                 "imu": imu,
                 "timestamp": time.time()
             }
@@ -442,6 +528,11 @@ def road_processor_thread():
                 dir_data['is_moving'] = imu.get('is_moving', False)
                 dir_data['speed_estimate'] = imu.get('speed_kmh', 0.0)
                 dir_data['motion_confidence'] = imu.get('motion_confidence', 0.0)
+            
+            # Add LiDAR-based enhancements
+            if lidar and lidar.get('is_scanning', False):
+                dir_data['lidar_obstacle_count'] = len(lidar.get('obstacles', []))
+                dir_data['lidar_scan_quality'] = lidar.get('scan_frequency', 0.0)
             
             with direction_data_lock:
                 direction_data = dir_data
@@ -534,6 +625,7 @@ def start_processing_threads():
     # Start processing threads
     threads = [
         threading.Thread(target=camera_stream_thread, daemon=True, name="CameraStream"),
+        threading.Thread(target=lidar_processor_thread, daemon=True, name="LiDARProcessor"),
         threading.Thread(target=yolo_processor_thread, daemon=True, name="YOLOProcessor"),
         threading.Thread(target=lane_detector_thread, daemon=True, name="LaneDetector"),
         threading.Thread(target=depth_analyzer_thread, daemon=True, name="DepthAnalyzer"),
@@ -551,6 +643,7 @@ def start_processing_threads():
 def get_system_status():
     """Sistem durumunu al"""
     camera_status = camera_manager.get_camera_status() if camera_manager else None
+    lidar_status = lidar_processor.get_status() if lidar_processor else None
     
     with arduino_status_lock:
         arduino_stat = arduino_status
@@ -560,6 +653,8 @@ def get_system_status():
         lane_res = lane_results.copy()
     with obstacle_results_lock:
         obs_results = obstacle_results.copy()
+    with lidar_results_lock:
+        lidar_res = lidar_results.copy()
     with direction_data_lock:
         dir_data = direction_data.copy()
     with imu_data_lock:
@@ -574,10 +669,17 @@ def get_system_status():
             "has_depth": camera_status.has_depth if camera_status else False,
             "has_imu": camera_status.has_imu if camera_status else False
         },
+        "lidar_status": lidar_status or {
+            "is_connected": False,
+            "is_scanning": False,
+            "scan_frequency": 0.0,
+            "obstacle_count": 0
+        },
         "arduino_status": arduino_stat,
         "detection_results": det_results,
         "lane_results": lane_res,
         "obstacle_results": obs_results,
+        "lidar_results": lidar_res,
         "direction_data": dir_data,
         "imu_data": imu_dat,
         "safety_status": safety_monitor.get_safety_status(),
@@ -604,8 +706,10 @@ def main():
                 safety_status = safety_monitor.get_safety_status()
                 camera_status = camera_manager.get_camera_status() if camera_manager else None
                 camera_type = camera_status.camera_type if camera_status else "None"
+                lidar_status = lidar_processor.get_status() if lidar_processor else {"is_connected": False}
+                lidar_connected = "Connected" if lidar_status.get('is_connected', False) else "Disconnected"
                 
-                logger.info(f"System Status - FPS: {fps:.1f}, Camera: {camera_type}, Safety: {safety_status['current_state']}")
+                logger.info(f"System Status - FPS: {fps:.1f}, Camera: {camera_type}, LiDAR: {lidar_connected}, Safety: {safety_status['current_state']}")
                 
     except KeyboardInterrupt:
         logger.info("Shutting down enhanced system...")
@@ -617,6 +721,9 @@ def main():
         
         if camera_manager:
             camera_manager.stop()
+        
+        if lidar_processor:
+            lidar_processor.disconnect()
         
         logger.info("Enhanced system shutdown complete")
 

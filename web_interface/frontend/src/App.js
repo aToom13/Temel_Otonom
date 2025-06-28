@@ -3,6 +3,7 @@ import './index.css';
 import { fetchTelemetry, fetchLogs, fetchArduinoData } from './api';
 import VideoStream from './components/VideoStream';
 import RealTimeDashboard from './components/RealTimeDashboard';
+import LidarVisualization from './components/LidarVisualization';
 import { subscribeLogUpdate, unsubscribeLogUpdate } from './services/socket';
 
 function App() {
@@ -43,6 +44,7 @@ function App() {
     { id: 'strip', label: 'Lane Detection' },
     { id: 'mark', label: 'Object Detection' },
     { id: 'depth', label: 'Depth Analysis' },
+    { id: 'lidar', label: 'LiDAR Visualization' },
     { id: 'combined', label: 'Combined Results' }
   ];
 
@@ -159,6 +161,9 @@ function App() {
           </div>
         );
       
+      case 'lidar':
+        return <LidarVisualization />;
+      
       case 'combined':
         return (
           <div className="camera-feed">
@@ -219,7 +224,7 @@ function App() {
           </div>
         </div>
 
-        {activeTab !== 'dashboard' && (
+        {activeTab !== 'dashboard' && activeTab !== 'lidar' && (
           <div className="right-panel">
             <h3>System Status</h3>
             <div className="telemetry-section">
@@ -233,6 +238,7 @@ function App() {
             <div className="telemetry-section">
               <h4>Hardware Status</h4>
               <div className="data-row">ZED Camera: <span className="status-connected">Connected</span></div>
+              <div className="data-row">LiDAR: <span className="status-connected">Connected</span></div>
               <div className="data-row">Arduino: <span className="status-connected">{arduinoData.connection || 'N/A'}</span></div>
               <div className="data-row">Last Command: <span>{arduinoData.last_command || 'N/A'}</span></div>
             </div>
@@ -255,7 +261,7 @@ function App() {
         )}
       </div>
 
-      {activeTab !== 'dashboard' && (
+      {activeTab !== 'dashboard' && activeTab !== 'lidar' && (
         <div className="bottom-panel">
           <h3>System Logs</h3>
           <div className="log-output">

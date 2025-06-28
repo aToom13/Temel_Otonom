@@ -41,6 +41,24 @@ lane_detection:
   roi_top: 0.6
   roi_bottom: 0.95
 
+lidar:
+  port: /dev/ttyUSB0  # Linux: /dev/ttyUSB0, Windows: COM4
+  baudrate: 115200
+  timeout: 3.0
+  max_distance: 12.0  # meters (RPLIDAR A1 max range)
+  min_distance: 0.15  # meters (RPLIDAR A1 min range)
+  angle_resolution: 1.0  # degrees
+  history_size: 10
+  clustering_distance: 0.3  # meters
+  min_cluster_size: 3
+  safety_zones:
+    immediate: 0.5  # meters
+    warning: 1.0    # meters
+    caution: 2.0    # meters
+  scan_frequency: 10.0  # Hz
+  filter_noise: true
+  median_filter_size: 3
+
 thresholds:
   depth_obstacle_mm: 2000
 

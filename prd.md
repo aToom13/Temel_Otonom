@@ -3,10 +3,10 @@
 ## 📋 Genel Bakış
 
 ### Proje Vizyonu
-Dursun, açık kaynak otonom navigasyon platformu olarak, eğitim, araştırma ve prototipleme amaçlı kullanılabilecek kapsamlı bir sistem geliştirmeyi hedeflemektedir. **ZED 2i kamera ve dahili IMU sensörü** ile gelişmiş sensor fusion yetenekleri sunar.
+Dursun, açık kaynak otonom navigasyon platformu olarak, eğitim, araştırma ve prototipleme amaçlı kullanılabilecek kapsamlı bir sistem geliştirmeyi hedeflemektedir. **ZED 2i kamera + dahili IMU sensörü + Slamtec RPLIDAR A1** ile gelişmiş multi-modal sensor fusion yetenekleri sunar.
 
 ### Mevcut Durum Analizi
-Proje şu anda gelişmiş MVP (Minimum Viable Product) aşamasında olup, ZED 2i IMU entegrasyonu, gelişmiş derinlik işleme, safety monitoring ve performance optimization özellikleri eklenmiştir.
+Proje şu anda gelişmiş MVP (Minimum Viable Product) aşamasında olup, ZED 2i IMU entegrasyonu, RPLIDAR A1 LiDAR entegrasyonu, gelişmiş derinlik işleme, safety monitoring ve performance optimization özellikleri eklenmiştir.
 
 ---
 
@@ -14,12 +14,13 @@ Proje şu anda gelişmiş MVP (Minimum Viable Product) aşamasında olup, ZED 2i
 
 ### ✅ Güçlü Yönler
 
-#### 1. **Gelişmiş Sensor Fusion**
+#### 1. **Multi-Modal Sensor Fusion**
 - ZED 2i stereo kamera + dahili IMU entegrasyonu
+- Slamtec RPLIDAR A1 2D laser scanner entegrasyonu
 - Kalman filter tabanlı sensor fusion
 - Real-time orientation tracking (roll, pitch, yaw)
 - Motion detection ve velocity estimation
-- Gravity compensation ve noise filtering
+- 360° çevre algılama ve obstacle detection
 
 #### 2. **Enhanced Camera Management**
 - Otomatik ZED/Webcam geçişi (hot-swap)
@@ -28,76 +29,100 @@ Proje şu anda gelişmiş MVP (Minimum Viable Product) aşamasında olup, ZED 2i
 - Point cloud generation ve spatial mapping
 - Camera health monitoring ve auto-reconnection
 
-#### 3. **Gelişmiş Lane Detection**
+#### 3. **Advanced LiDAR Processing**
+- Real-time 2D laser scanning (12m menzil)
+- Noise filtering ve point cloud processing
+- Obstacle clustering ve tracking
+- Safety zone monitoring (immediate/warning/caution)
+- Interactive web visualization
+- Automatic reconnection ve health monitoring
+
+#### 4. **Gelişmiş Lane Detection**
 - Temporal consistency ve multi-frame averaging
 - Lane change detection ve departure warning
 - Polynomial curve fitting ve curvature analysis
 - Lane tracking ve prediction
 - Quality assessment ve confidence scoring
 
-#### 4. **Safety ve Performance**
+#### 5. **Safety ve Performance**
 - ISO 26262 uyumlu safety monitoring
 - Watchdog timer ve emergency stop
 - Memory management ve leak detection
 - Async processing ve thread pool optimization
 - Real-time performance metrics
+- Comprehensive test coverage (>90%)
 
-#### 5. **Modern Web Dashboard**
+#### 6. **Modern Web Dashboard**
 - Real-time telemetry charts (Chart.js)
 - IMU data visualization
+- Interactive LiDAR visualization
 - Camera status ve switching controls
 - Safety controls (emergency stop/reset)
 - Performance monitoring dashboard
 
 ### ⚠️ Geliştirilmesi Gereken Alanlar
 
-#### 1. **Advanced Sensor Fusion**
-- **Mevcut**: Temel IMU + Camera fusion
-- **Hedef**: Multi-modal sensor fusion (LiDAR, Radar, GPS)
-- **Çözüm**: Extended Kalman Filter, particle filters
+#### 1. **Advanced Mapping ve SLAM**
+- **Mevcut**: Temel 2D LiDAR processing
+- **Hedef**: Full 2D SLAM, occupancy grid mapping
+- **Çözüm**: Hector SLAM, GMapping integration
 
-#### 2. **Machine Learning Pipeline**
+#### 2. **Path Planning ve Navigation**
+- **Mevcut**: Temel obstacle avoidance
+- **Hedef**: A* path planning, dynamic replanning
+- **Çözüm**: RRT*, MPC controller integration
+
+#### 3. **Machine Learning Pipeline**
 - **Mevcut**: Statik YOLO modelleri
 - **Hedef**: Custom model training, online learning
 - **Çözüm**: MLOps pipeline, continuous learning
 
-#### 3. **Advanced Navigation**
-- **Mevcut**: Temel path following
-- **Hedef**: SLAM, path planning, obstacle avoidance
-- **Çözüm**: ROS integration, advanced algorithms
+#### 4. **Advanced Sensor Integration**
+- **Mevcut**: ZED + IMU + LiDAR
+- **Hedef**: GPS, additional sensors
+- **Çözüm**: Extended sensor fusion framework
 
 ---
 
 ## 🚀 Öncelikli İyileştirmeler (Q1 2025)
 
-### 1. **SLAM ve Spatial Mapping** (Kritik Öncelik)
+### 1. **2D SLAM ve Mapping** (Kritik Öncelik)
 
-#### 1.1 Visual-Inertial SLAM
+#### 1.1 Hector SLAM Integration
 ```python
 # modules/slam_processor.py (yeni dosya)
-class VisualInertialSLAM:
+class HectorSLAMProcessor:
     def __init__(self):
-        self.feature_tracker = ORBFeatureTracker()
-        self.bundle_adjuster = BundleAdjuster()
-        self.loop_detector = LoopDetector()
-        self.map_manager = MapManager()
+        self.scan_matcher = ScanMatcher()
+        self.map_builder = OccupancyGridBuilder()
+        self.pose_estimator = PoseEstimator()
+        self.loop_detector = LoopClosureDetector()
     
-    def process_frame(self, rgb_frame, depth_frame, imu_data):
+    def process_lidar_scan(self, scan_data, imu_data):
         """
-        - Feature extraction ve tracking
-        - Pose estimation (Visual-Inertial)
-        - Map building ve optimization
+        - Scan matching for pose estimation
+        - Occupancy grid building
         - Loop closure detection
+        - Map optimization
         """
-        features = self.feature_tracker.extract_features(rgb_frame)
-        pose = self.estimate_pose(features, imu_data)
-        self.map_manager.update_map(pose, depth_frame)
+        # Predict pose using IMU
+        predicted_pose = self.pose_estimator.predict_with_imu(imu_data)
         
-        # Loop closure detection
-        if self.loop_detector.detect_loop(features):
-            self.bundle_adjuster.optimize_map()
+        # Scan matching
+        corrected_pose = self.scan_matcher.match_scan(
+            scan_data, 
+            predicted_pose, 
+            self.map_builder.get_current_map()
+        )
         
-        return pose, self.map_manager.get_current_map()
+        # Update map
+        self.map_builder.update_map(scan_data, corrected_pose)
+        
+        # Check for loop closure
+        if self.loop_detector.detect_loop(corrected_pose):
+            self.map_builder.optimize_map()
+        
+        return corrected_pose, self.map_builder.get_current_map()
 ```
 
 #### 1.2 Occupancy Grid Mapping
@@ -107,103 +132,244 @@ class OccupancyGridMapper:
     def __init__(self, resolution=0.05):  # 5cm resolution
         self.resolution = resolution
         self.grid_size = (2000, 2000)  # 100m x 100m
-        self.occupancy_grid = np.zeros(self.grid_size)
+        self.occupancy_grid = np.zeros(self.grid_size, dtype=np.float32)
         self.robot_position = (1000, 1000)  # Center
+        self.confidence_grid = np.zeros(self.grid_size, dtype=np.float32)
     
-    def update_grid(self, depth_data, robot_pose):
+    def update_grid_with_lidar(self, lidar_points, robot_pose):
         """
-        - Depth data'yı world coordinates'e çevir
-        - Occupancy grid'i güncelle
-        - Dynamic obstacle tracking
-        - Free space mapping
+        - Ray casting for free space
+        - Obstacle marking
+        - Probability updates
+        - Dynamic obstacle handling
         """
-        world_points = self.transform_to_world(depth_data, robot_pose)
-        self.update_occupancy_probabilities(world_points)
-        self.apply_temporal_decay()  # Dynamic obstacles için
+        for point in lidar_points:
+            # Convert to grid coordinates
+            grid_x, grid_y = self.world_to_grid(point.x, point.y, robot_pose)
+            
+            # Ray casting from robot to obstacle
+            ray_points = self.bresenham_line(
+                self.robot_position, 
+                (grid_x, grid_y)
+            )
+            
+            # Mark free space
+            for ray_point in ray_points[:-1]:
+                self.update_cell_probability(ray_point, occupied=False)
+            
+            # Mark obstacle
+            self.update_cell_probability((grid_x, grid_y), occupied=True)
         
-        return self.get_local_grid(robot_pose)
+        return self.get_local_map(robot_pose)
+    
+    def update_cell_probability(self, cell, occupied, confidence=0.9):
+        """Bayesian probability update"""
+        x, y = cell
+        if 0 <= x < self.grid_size[0] and 0 <= y < self.grid_size[1]:
+            if occupied:
+                self.occupancy_grid[x, y] = min(1.0, 
+                    self.occupancy_grid[x, y] + confidence * 0.1)
+            else:
+                self.occupancy_grid[x, y] = max(0.0, 
+                    self.occupancy_grid[x, y] - confidence * 0.05)
 ```
 
 ### 2. **Advanced Path Planning** (Yüksek Öncelik)
 
-#### 2.1 A* Path Planning
+#### 2.1 A* Path Planning with Dynamic Obstacles
 ```python
 # modules/path_planner.py (yeni dosya)
 class AdvancedPathPlanner:
     def __init__(self):
         self.astar = AStarPlanner()
-        self.rrt = RRTPlanner()
+        self.rrt_star = RRTStarPlanner()
         self.trajectory_optimizer = TrajectoryOptimizer()
+        self.dynamic_replanner = DynamicReplanner()
     
-    def plan_path(self, start_pose, goal_pose, occupancy_grid):
+    def plan_global_path(self, start_pose, goal_pose, occupancy_grid):
         """
         - A* global path planning
-        - RRT local path planning
-        - Dynamic obstacle avoidance
-        - Trajectory optimization
+        - Multi-resolution planning
+        - Obstacle inflation
+        - Path smoothing
         """
-        # Global path
-        global_path = self.astar.plan(start_pose, goal_pose, occupancy_grid)
+        # Inflate obstacles for safety
+        inflated_grid = self.inflate_obstacles(occupancy_grid, inflation_radius=0.3)
         
-        # Local path refinement
-        local_path = self.rrt.refine_path(global_path, occupancy_grid)
+        # A* planning
+        global_path = self.astar.plan(start_pose, goal_pose, inflated_grid)
         
-        # Trajectory optimization
-        optimized_trajectory = self.trajectory_optimizer.optimize(
-            local_path, 
-            constraints={'max_speed': 2.0, 'max_acceleration': 1.0}
+        if global_path is None:
+            # Fallback to RRT* for complex scenarios
+            global_path = self.rrt_star.plan(start_pose, goal_pose, inflated_grid)
+        
+        # Smooth path
+        smoothed_path = self.smooth_path(global_path)
+        
+        return smoothed_path
+    
+    def plan_local_path(self, current_pose, global_path, dynamic_obstacles):
+        """
+        - Local path planning with dynamic obstacles
+        - Velocity planning
+        - Emergency maneuvers
+        - Real-time replanning
+        """
+        # Check for dynamic obstacles
+        if self.detect_path_blockage(global_path, dynamic_obstacles):
+            # Dynamic replanning
+            local_path = self.dynamic_replanner.replan(
+                current_pose, 
+                global_path, 
+                dynamic_obstacles
+            )
+        else:
+            # Follow global path
+            local_path = self.extract_local_segment(global_path, current_pose)
+        
+        # Velocity planning
+        velocity_profile = self.plan_velocity(local_path, dynamic_obstacles)
+        
+        return local_path, velocity_profile
+    
+    def emergency_stop_planning(self, current_pose, current_velocity):
+        """
+        - Emergency braking trajectory
+        - Collision avoidance maneuvers
+        - Safe stopping distance calculation
+        """
+        stopping_distance = self.calculate_stopping_distance(current_velocity)
+        emergency_path = self.plan_emergency_trajectory(
+            current_pose, 
+            stopping_distance
         )
         
-        return optimized_trajectory
-    
-    def dynamic_replanning(self, current_pose, obstacles):
-        """
-        - Real-time obstacle detection
-        - Dynamic path replanning
-        - Emergency maneuvers
-        """
-        if self.detect_path_blockage(obstacles):
-            emergency_path = self.plan_emergency_maneuver(current_pose, obstacles)
-            return emergency_path
-        
-        return self.current_path
+        return emergency_path
 ```
 
 #### 2.2 Model Predictive Control (MPC)
 ```python
 # core/controllers/mpc_controller.py (yeni dosya)
 class MPCController:
-    def __init__(self, prediction_horizon=10):
-        self.horizon = prediction_horizon
+    def __init__(self, prediction_horizon=10, control_horizon=3):
+        self.prediction_horizon = prediction_horizon
+        self.control_horizon = control_horizon
         self.vehicle_model = BicycleModel()
         self.optimizer = QuadraticProgramSolver()
+        self.constraint_handler = ConstraintHandler()
     
-    def compute_control(self, current_state, reference_trajectory):
+    def compute_control(self, current_state, reference_trajectory, obstacles):
         """
         - Vehicle dynamics modeling
         - Constraint optimization
-        - Predictive control
+        - Obstacle avoidance constraints
         - Stability guarantees
         """
         # Predict future states
         predicted_states = []
-        for i in range(self.horizon):
+        for i in range(self.prediction_horizon):
             state = self.vehicle_model.predict(current_state, i)
             predicted_states.append(state)
         
-        # Optimize control inputs
-        optimal_controls = self.optimizer.solve(
+        # Setup optimization problem
+        cost_function = self.setup_cost_function(
             predicted_states, 
-            reference_trajectory,
-            constraints=self.get_constraints()
+            reference_trajectory
+        )
+        
+        constraints = self.constraint_handler.generate_constraints(
+            predicted_states, 
+            obstacles,
+            vehicle_limits={'max_steering': 45, 'max_speed': 60}
+        )
+        
+        # Solve optimization
+        optimal_controls = self.optimizer.solve(
+            cost_function, 
+            constraints
         )
         
         return optimal_controls[0]  # Return first control input
+    
+    def adaptive_horizon(self, current_speed, obstacle_density):
+        """
+        - Adaptive prediction horizon
+        - Speed-dependent planning
+        - Computational load balancing
+        """
+        base_horizon = 10
+        speed_factor = min(2.0, current_speed / 30.0)  # Normalize to 30 km/h
+        obstacle_factor = min(1.5, obstacle_density / 5.0)  # Normalize to 5 obstacles
+        
+        adaptive_horizon = int(base_horizon * speed_factor * obstacle_factor)
+        return max(5, min(20, adaptive_horizon))  # Clamp between 5-20
 ```
 
-### 3. **Machine Learning Pipeline** (Yüksek Öncelik)
+### 3. **Enhanced Sensor Fusion** (Yüksek Öncelik)
 
-#### 3.1 Custom Model Training
+#### 3.1 Multi-Modal Kalman Filter
+```python
+# core/algorithms/multi_modal_fusion.py (yeni dosya)
+class MultiModalSensorFusion:
+    def __init__(self):
+        self.ekf = ExtendedKalmanFilter()
+        self.particle_filter = ParticleFilter()
+        self.sensor_validators = {
+            'camera': CameraValidator(),
+            'imu': IMUValidator(),
+            'lidar': LiDARValidator()
+        }
+        self.fusion_weights = {'camera': 0.4, 'imu': 0.3, 'lidar': 0.3}
+    
+    def fuse_sensor_data(self, camera_data, imu_data, lidar_data):
+        """
+        - Multi-modal sensor fusion
+        - Sensor reliability assessment
+        - Adaptive fusion weights
+        - Outlier detection and rejection
+        """
+        # Validate sensor data
+        validated_data = {}
+        for sensor, data in [('camera', camera_data), ('imu', imu_data), ('lidar', lidar_data)]:
+            if data and self.sensor_validators[sensor].validate(data):
+                validated_data[sensor] = data
+        
+        # Adaptive weight adjustment
+        self.adjust_fusion_weights(validated_data)
+        
+        # Extended Kalman Filter for pose estimation
+        pose_estimate = self.ekf.update(validated_data, self.fusion_weights)
+        
+        # Particle filter for robust localization
+        robust_pose = self.particle_filter.update(pose_estimate, validated_data)
+        
+        return robust_pose
+    
+    def adjust_fusion_weights(self, sensor_data):
+        """
+        - Dynamic weight adjustment based on sensor reliability
+        - Environmental condition adaptation
+        - Sensor failure detection
+        """
+        total_weight = 0
+        
+        for sensor in self.fusion_weights:
+            if sensor in sensor_data:
+                reliability = self.assess_sensor_reliability(sensor, sensor_data[sensor])
+                self.fusion_weights[sensor] = reliability
+                total_weight += reliability
+            else:
+                self.fusion_weights[sensor] = 0
+        
+        # Normalize weights
+        if total_weight > 0:
+            for sensor in self.fusion_weights:
+                self.fusion_weights[sensor] /= total_weight
+```
+
+### 4. **Machine Learning Pipeline** (Orta Öncelik)
+
+#### 4.1 Custom Model Training
 ```python
 # ml_pipeline/model_trainer.py (yeni dosya)
 class CustomModelTrainer:
@@ -211,277 +377,130 @@ class CustomModelTrainer:
         self.data_collector = DataCollector()
         self.augmentation_pipeline = AugmentationPipeline()
         self.model_optimizer = ModelOptimizer()
+        self.validation_suite = ValidationSuite()
     
-    def train_traffic_sign_model(self, dataset_path):
+    def train_lidar_obstacle_model(self, dataset_path):
         """
-        - Custom dataset loading
-        - Data augmentation
-        - Transfer learning from YOLO
-        - Model quantization for edge deployment
+        - LiDAR-specific obstacle detection
+        - Point cloud augmentation
+        - 3D CNN training
+        - Real-time optimization
         """
-        # Load and preprocess data
-        dataset = self.data_collector.load_dataset(dataset_path)
-        augmented_data = self.augmentation_pipeline.process(dataset)
+        # Load LiDAR dataset
+        dataset = self.data_collector.load_lidar_dataset(dataset_path)
         
-        # Train model
-        model = YOLO('yolov8n.pt')  # Start with pretrained
+        # Augment point cloud data
+        augmented_data = self.augmentation_pipeline.augment_point_clouds(dataset)
+        
+        # Train 3D CNN model
+        model = self.create_3d_cnn_model()
         model.train(
             data=augmented_data,
             epochs=100,
-            imgsz=640,
-            batch=16,
-            device='cuda'
+            batch_size=8,
+            validation_split=0.2
         )
         
-        # Optimize for deployment
-        optimized_model = self.model_optimizer.quantize_int8(model)
+        # Optimize for real-time inference
+        optimized_model = self.model_optimizer.optimize_for_inference(model)
+        
         return optimized_model
     
-    def continuous_learning(self, new_data_stream):
+    def train_sensor_fusion_model(self, multi_modal_dataset):
         """
-        - Online learning capabilities
-        - Model drift detection
-        - Automatic retraining triggers
-        - A/B testing for model updates
-        """
-        for batch in new_data_stream:
-            # Detect distribution shift
-            if self.detect_model_drift(batch):
-                logger.info("Model drift detected, triggering retraining")
-                self.trigger_retraining(batch)
-            
-            # Update model incrementally
-            self.incremental_update(batch)
-```
-
-#### 3.2 Behavioral Cloning
-```python
-# ml_pipeline/behavioral_cloning.py (yeni dosya)
-class BehavioralCloning:
-    def __init__(self):
-        self.driving_model = self.create_driving_model()
-        self.data_recorder = DrivingDataRecorder()
-    
-    def record_driving_session(self, duration_minutes):
-        """
-        - Multi-modal data recording
-        - Automatic annotation
-        - Quality assessment
-        - Data validation
-        """
-        session_data = {
-            'camera_frames': [],
-            'imu_data': [],
-            'steering_commands': [],
-            'speed_commands': [],
-            'timestamps': []
-        }
-        
-        start_time = time.time()
-        while time.time() - start_time < duration_minutes * 60:
-            # Record synchronized data
-            frame = self.capture_frame()
-            imu = self.get_imu_data()
-            steering = self.get_steering_angle()
-            speed = self.get_speed()
-            
-            session_data['camera_frames'].append(frame)
-            session_data['imu_data'].append(imu)
-            session_data['steering_commands'].append(steering)
-            session_data['speed_commands'].append(speed)
-            session_data['timestamps'].append(time.time())
-        
-        return self.validate_session_data(session_data)
-    
-    def train_driving_model(self, driving_sessions):
-        """
-        - End-to-end learning
-        - Multi-task learning (steering + speed)
+        - Multi-modal learning
         - Attention mechanisms
         - Uncertainty quantification
+        - Domain adaptation
         """
-        # Prepare training data
-        X, y_steering, y_speed = self.prepare_training_data(driving_sessions)
+        # Prepare multi-modal data
+        camera_data, lidar_data, imu_data = self.prepare_multimodal_data(multi_modal_dataset)
         
-        # Multi-task model
-        model = self.create_multitask_model()
-        model.compile(
-            optimizer='adam',
-            loss={
-                'steering': 'mse',
-                'speed': 'mse'
-            },
-            loss_weights={'steering': 1.0, 'speed': 0.5}
-        )
+        # Create fusion model with attention
+        fusion_model = self.create_attention_fusion_model()
         
-        # Train with validation
-        history = model.fit(
-            X, 
-            {'steering': y_steering, 'speed': y_speed},
-            validation_split=0.2,
+        # Train with uncertainty quantification
+        fusion_model.train_with_uncertainty(
+            camera_data, lidar_data, imu_data,
             epochs=50,
-            batch_size=32,
-            callbacks=[
-                EarlyStopping(patience=10),
-                ModelCheckpoint('best_driving_model.h5')
-            ]
+            uncertainty_method='monte_carlo_dropout'
         )
         
-        return model, history
-```
-
-### 4. **Advanced Sensor Integration** (Orta Öncelik)
-
-#### 4.1 LiDAR Integration
-```python
-# sensors/lidar_processor.py (yeni dosya)
-class LiDARProcessor:
-    def __init__(self):
-        self.point_cloud_processor = PointCloudProcessor()
-        self.object_detector = LiDARObjectDetector()
-        self.ground_segmentation = GroundSegmentation()
-    
-    def process_lidar_scan(self, point_cloud):
-        """
-        - Point cloud filtering
-        - Ground plane removal
-        - Object clustering
-        - 3D bounding box generation
-        """
-        # Preprocess point cloud
-        filtered_cloud = self.point_cloud_processor.filter_noise(point_cloud)
-        
-        # Ground segmentation
-        ground_points, object_points = self.ground_segmentation.segment(filtered_cloud)
-        
-        # Object detection
-        objects = self.object_detector.detect_objects(object_points)
-        
-        return {
-            'objects': objects,
-            'ground_plane': ground_points,
-            'free_space': self.calculate_free_space(ground_points)
-        }
-    
-    def fuse_with_camera(self, lidar_objects, camera_detections):
-        """
-        - LiDAR-Camera fusion
-        - 3D-2D projection
-        - Object association
-        - Enhanced detection confidence
-        """
-        fused_objects = []
-        
-        for lidar_obj in lidar_objects:
-            # Project 3D to 2D
-            projected_bbox = self.project_3d_to_2d(lidar_obj.bbox_3d)
-            
-            # Find matching camera detection
-            best_match = self.find_best_camera_match(projected_bbox, camera_detections)
-            
-            if best_match:
-                # Fuse information
-                fused_obj = self.fuse_detections(lidar_obj, best_match)
-                fused_objects.append(fused_obj)
-        
-        return fused_objects
-```
-
-#### 4.2 GPS Integration
-```python
-# sensors/gps_processor.py (yeni dosya)
-class GPSProcessor:
-    def __init__(self):
-        self.coordinate_transformer = CoordinateTransformer()
-        self.kalman_filter = GPSKalmanFilter()
-        self.map_matcher = MapMatcher()
-    
-    def process_gps_data(self, gps_reading):
-        """
-        - GPS coordinate processing
-        - Map matching
-        - Dead reckoning integration
-        - Accuracy assessment
-        """
-        # Convert to local coordinates
-        local_coords = self.coordinate_transformer.gps_to_local(gps_reading)
-        
-        # Kalman filtering
-        filtered_position = self.kalman_filter.update(local_coords)
-        
-        # Map matching
-        matched_position = self.map_matcher.match_to_road(filtered_position)
-        
-        return {
-            'position': matched_position,
-            'accuracy': gps_reading.accuracy,
-            'heading': gps_reading.heading,
-            'speed': gps_reading.speed
-        }
+        return fusion_model
 ```
 
 ---
 
 ## 🔮 Gelecek Özellikler (Q2-Q4 2025)
 
-### 1. **Simulation Environment** (Q2 2025)
+### 1. **3D LiDAR Integration** (Q2 2025)
 
-#### 1.1 Physics-Based Simulation
+#### 1.1 Velodyne/Ouster Integration
 ```python
-# simulation/physics_sim.py (yeni dosya)
-class PhysicsSimulation:
+# sensors/lidar_3d_processor.py (yeni dosya)
+class LiDAR3DProcessor:
     def __init__(self):
-        self.physics_engine = PyBullet()
-        self.vehicle_model = VehicleDynamicsModel()
-        self.environment = SimulationEnvironment()
+        self.point_cloud_processor = PointCloudProcessor()
+        self.object_detector_3d = Object3DDetector()
+        self.ground_segmentation = GroundSegmentation3D()
+        self.semantic_segmentation = SemanticSegmentation()
     
-    def create_simulation_world(self, world_config):
+    def process_3d_point_cloud(self, point_cloud):
         """
-        - Realistic vehicle physics
-        - Environmental conditions
-        - Traffic simulation
-        - Sensor noise modeling
+        - 3D point cloud processing
+        - Semantic segmentation
+        - 3D object detection
+        - SLAM integration
         """
-        # Create physics world
-        world = self.physics_engine.create_world(world_config)
+        # Ground plane removal
+        ground_points, object_points = self.ground_segmentation.segment(point_cloud)
         
-        # Spawn vehicle
-        vehicle = self.vehicle_model.spawn_vehicle(world)
+        # Semantic segmentation
+        semantic_labels = self.semantic_segmentation.segment(object_points)
         
-        # Add traffic
-        traffic = self.generate_realistic_traffic(world)
+        # 3D object detection
+        objects_3d = self.object_detector_3d.detect(object_points, semantic_labels)
         
-        # Environmental conditions
-        weather = self.setup_weather_conditions(world_config.weather)
-        
-        return SimulationWorld(world, vehicle, traffic, weather)
-    
-    def run_scenario(self, scenario_config):
-        """
-        - Automated testing scenarios
-        - Edge case generation
-        - Performance benchmarking
-        - Safety validation
-        """
-        results = []
-        
-        for test_case in scenario_config.test_cases:
-            # Setup scenario
-            world = self.create_simulation_world(test_case.world_config)
-            
-            # Run simulation
-            result = self.execute_test_case(world, test_case)
-            results.append(result)
-            
-            # Cleanup
-            self.cleanup_world(world)
-        
-        return SimulationResults(results)
+        return {
+            'objects_3d': objects_3d,
+            'ground_plane': ground_points,
+            'semantic_map': semantic_labels
+        }
 ```
 
-### 2. **Cloud Integration** (Q3 2025)
+### 2. **Advanced Navigation** (Q3 2025)
 
-#### 2.1 Fleet Management
+#### 2.1 Behavior Planning
+```python
+# navigation/behavior_planner.py (yeni dosya)
+class BehaviorPlanner:
+    def __init__(self):
+        self.state_machine = StateMachine()
+        self.decision_tree = DecisionTree()
+        self.risk_assessor = RiskAssessor()
+    
+    def plan_behavior(self, current_state, environment_model):
+        """
+        - High-level behavior planning
+        - Risk assessment
+        - Decision making under uncertainty
+        - Multi-objective optimization
+        """
+        # Assess current situation
+        situation = self.assess_situation(current_state, environment_model)
+        
+        # Risk assessment
+        risk_level = self.risk_assessor.assess_risk(situation)
+        
+        # Behavior selection
+        behavior = self.decision_tree.select_behavior(situation, risk_level)
+        
+        return behavior
+```
+
+### 3. **Cloud Integration** (Q4 2025)
+
+#### 3.1 Fleet Management
 ```python
 # cloud/fleet_manager.py (yeni dosya)
 class FleetManager:
@@ -489,6 +508,7 @@ class FleetManager:
         self.vehicle_registry = VehicleRegistry()
         self.telemetry_collector = TelemetryCollector()
         self.command_dispatcher = CommandDispatcher()
+        self.analytics_engine = AnalyticsEngine()
     
     def manage_fleet(self, vehicle_ids):
         """
@@ -502,119 +522,14 @@ class FleetManager:
             telemetry = self.telemetry_collector.get_vehicle_data(vehicle_id)
             
             # Analyze performance
-            performance = self.analyze_vehicle_performance(telemetry)
+            performance = self.analytics_engine.analyze_performance(telemetry)
             
-            # Dispatch commands if needed
-            if performance.needs_intervention:
-                command = self.generate_intervention_command(performance)
-                self.command_dispatcher.send_command(vehicle_id, command)
-```
-
-### 3. **Edge Computing Optimization** (Q4 2025)
-
-#### 3.1 Model Optimization
-```python
-# deployment/edge_optimizer.py (yeni dosya)
-class EdgeOptimizer:
-    def __init__(self):
-        self.model_quantizer = ModelQuantizer()
-        self.inference_optimizer = InferenceOptimizer()
-        self.hardware_profiler = HardwareProfiler()
-    
-    def optimize_for_jetson(self, model, target_device):
-        """
-        - TensorRT optimization
-        - INT8 quantization
-        - Memory optimization
-        - Power efficiency tuning
-        """
-        # Profile hardware capabilities
-        hw_profile = self.hardware_profiler.profile(target_device)
-        
-        # Quantize model
-        quantized_model = self.model_quantizer.quantize_int8(
-            model, 
-            calibration_data=self.get_calibration_data()
-        )
-        
-        # TensorRT optimization
-        tensorrt_model = self.convert_to_tensorrt(
-            quantized_model, 
-            precision='int8',
-            max_batch_size=1
-        )
-        
-        # Memory optimization
-        optimized_model = self.optimize_memory_usage(tensorrt_model, hw_profile)
-        
-        return optimized_model
-```
-
----
-
-## 🔒 Güvenlik ve Güvenilirlik Geliştirmeleri
-
-### 1. **Advanced Safety Systems**
-
-#### 1.1 Redundant Systems
-```python
-# safety/redundancy_manager.py (yeni dosya)
-class RedundancyManager:
-    def __init__(self):
-        self.primary_systems = PrimarySystems()
-        self.backup_systems = BackupSystems()
-        self.voting_mechanism = VotingMechanism()
-    
-    def triple_modular_redundancy(self, input_data):
-        """
-        - Three independent processing paths
-        - Majority voting for decisions
-        - Fault masking capabilities
-        """
-        # Process with three independent systems
-        result_a = self.primary_systems.process_a(input_data)
-        result_b = self.primary_systems.process_b(input_data)
-        result_c = self.backup_systems.process_c(input_data)
-        
-        # Majority voting
-        final_result = self.voting_mechanism.vote([result_a, result_b, result_c])
-        
-        # Fault detection
-        if not self.voting_mechanism.consensus_reached():
-            self.handle_system_fault()
-        
-        return final_result
-```
-
-### 2. **Cybersecurity**
-
-#### 2.1 Secure Communication
-```python
-# security/secure_comm.py (yeni dosya)
-class SecureCommunication:
-    def __init__(self):
-        self.encryption_key = self.generate_encryption_key()
-        self.message_authenticator = MessageAuthenticator()
-        self.intrusion_detector = IntrusionDetector()
-    
-    def secure_message_exchange(self, message, recipient):
-        """
-        - End-to-end encryption
-        - Message authentication
-        - Replay attack prevention
-        - Intrusion detection
-        """
-        # Encrypt message
-        encrypted_message = self.encrypt_message(message)
-        
-        # Add authentication
-        authenticated_message = self.message_authenticator.sign(encrypted_message)
-        
-        # Check for intrusions
-        if self.intrusion_detector.detect_anomaly(authenticated_message):
-            raise SecurityException("Potential intrusion detected")
-        
-        return self.send_secure_message(authenticated_message, recipient)
+            # Coordinate with other vehicles
+            coordination_commands = self.coordinate_vehicles(vehicle_id, vehicle_ids)
+            
+            # Dispatch commands
+            if coordination_commands:
+                self.command_dispatcher.send_commands(vehicle_id, coordination_commands)
 ```
 
 ---
@@ -624,27 +539,29 @@ class SecureCommunication:
 ### 1. **Gerçek Zamanlı Performans**
 - **Video Processing**: 30 FPS @ 720p, 20 FPS @ 1080p (ZED 2i ile)
 - **IMU Processing**: 100 Hz sensor fusion
+- **LiDAR Processing**: 10 Hz scan processing (RPLIDAR A1)
 - **Object Detection**: <40ms latency
 - **Lane Detection**: <25ms latency (temporal consistency ile)
-- **SLAM Processing**: 10 Hz pose estimation
-- **Path Planning**: <100ms replanning
-- **End-to-End Latency**: <80ms (sensor to actuator)
+- **SLAM Processing**: 5 Hz pose estimation
+- **Path Planning**: <200ms global planning, <50ms local planning
+- **End-to-End Latency**: <100ms (sensor to actuator)
 
 ### 2. **Doğruluk Metrikleri**
 - **Traffic Sign Detection**: >97% accuracy, <1% false positive
 - **Lane Detection**: >99% accuracy (temporal consistency ile)
 - **Obstacle Detection**: >99.5% accuracy, <0.05% false negative
-- **SLAM Accuracy**: <10cm position error
+- **SLAM Accuracy**: <15cm position error (2D SLAM)
 - **IMU Fusion**: <1° orientation error
-- **Path Planning**: <5cm lateral deviation
+- **LiDAR Obstacle Detection**: >98% accuracy, <2% false positive
+- **Path Planning**: <10cm lateral deviation
 
 ### 3. **Sistem Kararlılığı**
 - **Uptime**: >99.95% (4.38 saat/yıl downtime)
-- **Memory Usage**: <6GB peak usage (ZED + ML models)
-- **CPU Usage**: <70% average load
+- **Memory Usage**: <8GB peak usage (ZED + LiDAR + ML models)
+- **CPU Usage**: <75% average load
 - **GPU Usage**: <80% average load
 - **Recovery Time**: <3 saniye after failure
-- **MTBF**: >1000 saat
+- **MTBF**: >1500 saat
 
 ---
 
@@ -652,9 +569,9 @@ class SecureCommunication:
 
 ### 1. **Kod Kalitesi İyileştirmeleri**
 
-#### 1.1 Type Safety ve Documentation
+#### 1.1 Advanced Type Safety
 ```python
-# Gelişmiş type hints
+# Gelişmiş type hints ve protocols
 from typing import Protocol, TypeVar, Generic, Union, Literal
 import numpy.typing as npt
 
@@ -662,78 +579,110 @@ class SensorData(Protocol):
     timestamp: float
     data: npt.NDArray[np.float32]
     confidence: float
+    sensor_type: Literal["camera", "lidar", "imu"]
 
-def process_sensor_data(
-    data: SensorData,
+class LiDARScan(Protocol):
+    points: List[LidarPoint]
+    timestamp: float
+    scan_frequency: float
+    quality_metrics: Dict[str, float]
+
+def process_multi_modal_data(
+    camera_data: Optional[SensorData],
+    lidar_data: Optional[LiDARScan],
+    imu_data: Optional[SensorData],
     processing_mode: Literal["fast", "accurate", "balanced"] = "balanced"
-) -> Tuple[ProcessedData, QualityMetrics]:
+) -> Tuple[ProcessedData, QualityMetrics, PerformanceMetrics]:
     """
-    Process sensor data with specified mode.
+    Process multi-modal sensor data with comprehensive error handling.
     
     Args:
-        data: Input sensor data conforming to SensorData protocol
+        camera_data: Camera sensor data (optional)
+        lidar_data: LiDAR scan data (optional)
+        imu_data: IMU sensor data (optional)
         processing_mode: Processing quality vs speed tradeoff
         
     Returns:
-        Tuple of processed data and quality metrics
+        Tuple of processed data, quality metrics, and performance metrics
         
     Raises:
-        ProcessingError: If data processing fails
+        ProcessingError: If critical processing fails
         ValidationError: If input data is invalid
+        SensorError: If sensor data is corrupted
         
     Example:
-        >>> sensor_data = IMUData(timestamp=time.time(), data=np.array([1,2,3]), confidence=0.9)
-        >>> result, metrics = process_sensor_data(sensor_data, "accurate")
-        >>> print(f"Processing quality: {metrics.quality_score}")
+        >>> camera = CameraData(timestamp=time.time(), data=frame, confidence=0.9)
+        >>> lidar = LiDARScan(points=scan_points, timestamp=time.time(), scan_frequency=10.0)
+        >>> result, quality, perf = process_multi_modal_data(camera, lidar, None, "accurate")
+        >>> print(f"Processing quality: {quality.overall_score}")
     """
 ```
 
-### 2. **Database ve Persistence (Yeni)**
+### 2. **Database ve Persistence (Gelişmiş)**
 
-#### 2.1 Time Series Database
+#### 2.1 Time Series Database with LiDAR Support
 ```python
-# data/timeseries_manager.py (yeni dosya)
-class TimeSeriesManager:
+# data/timeseries_manager.py (gelişmiş)
+class AdvancedTimeSeriesManager:
     def __init__(self):
         self.influxdb_client = InfluxDBClient()
         self.redis_cache = RedisClient()
         self.data_validator = DataValidator()
+        self.compression_engine = CompressionEngine()
     
-    def store_telemetry(self, vehicle_id: str, telemetry_data: TelemetryData):
+    def store_lidar_telemetry(self, vehicle_id: str, lidar_data: LiDARScan):
         """
-        - High-frequency telemetry storage
+        - High-frequency LiDAR data storage
+        - Point cloud compression
+        - Spatial indexing
         - Real-time querying
-        - Data compression
-        - Automatic retention policies
         """
-        # Validate data
-        validated_data = self.data_validator.validate(telemetry_data)
+        # Compress point cloud data
+        compressed_points = self.compression_engine.compress_point_cloud(lidar_data.points)
         
-        # Store in InfluxDB
-        point = Point("telemetry") \
+        # Store in InfluxDB with spatial tags
+        point = Point("lidar_telemetry") \
             .tag("vehicle_id", vehicle_id) \
-            .field("speed", validated_data.speed) \
-            .field("steering_angle", validated_data.steering_angle) \
-            .field("imu_heading", validated_data.imu_heading) \
-            .time(validated_data.timestamp)
+            .tag("scan_quality", self._assess_scan_quality(lidar_data)) \
+            .field("point_count", len(lidar_data.points)) \
+            .field("scan_frequency", lidar_data.scan_frequency) \
+            .field("compressed_points", compressed_points) \
+            .time(lidar_data.timestamp)
         
-        self.influxdb_client.write_api().write(bucket="telemetry", record=point)
+        self.influxdb_client.write_api().write(bucket="lidar_telemetry", record=point)
         
-        # Cache recent data in Redis
+        # Cache recent scan for real-time access
         self.redis_cache.set(
-            f"latest_telemetry:{vehicle_id}", 
-            validated_data.to_json(),
-            ex=60  # 1 minute expiry
+            f"latest_lidar:{vehicle_id}", 
+            lidar_data.to_json(),
+            ex=30  # 30 second expiry
         )
+    
+    def query_spatial_data(self, vehicle_id: str, time_range: Tuple[float, float], 
+                          spatial_bounds: Tuple[float, float, float, float]):
+        """
+        - Spatial-temporal queries
+        - Map reconstruction
+        - Historical analysis
+        """
+        query = f'''
+        from(bucket: "lidar_telemetry")
+          |> range(start: {time_range[0]}, stop: {time_range[1]})
+          |> filter(fn: (r) => r["vehicle_id"] == "{vehicle_id}")
+          |> filter(fn: (r) => r["_measurement"] == "lidar_telemetry")
+        '''
+        
+        result = self.influxdb_client.query_api().query(query)
+        return self._reconstruct_spatial_data(result, spatial_bounds)
 ```
 
 ---
 
-## 🔄 DevOps ve Deployment (Güncellenmiş)
+## 🔄 DevOps ve Deployment (Gelişmiş)
 
-### 1. **Container Orchestration**
+### 1. **Container Orchestration with Hardware Support**
 
-#### 1.1 Kubernetes Deployment
+#### 1.1 Kubernetes Deployment with Device Plugins
 ```yaml
 # k8s/production/dursun-deployment.yaml
 apiVersion: apps/v1
@@ -742,7 +691,7 @@ metadata:
   name: dursun-system
   labels:
     app: dursun
-    version: v2.0
+    version: v3.0
 spec:
   replicas: 1  # Single vehicle deployment
   selector:
@@ -755,21 +704,25 @@ spec:
     spec:
       containers:
       - name: dursun-main
-        image: dursun:v2.0-zed-imu
+        image: dursun:v3.0-multi-sensor
         resources:
           requests:
-            memory: "4Gi"
-            cpu: "2000m"
+            memory: "6Gi"
+            cpu: "3000m"
             nvidia.com/gpu: 1
           limits:
-            memory: "8Gi"
-            cpu: "4000m"
+            memory: "12Gi"
+            cpu: "6000m"
             nvidia.com/gpu: 1
         env:
         - name: ZED_CAMERA_ENABLED
           value: "true"
         - name: IMU_ENABLED
           value: "true"
+        - name: LIDAR_ENABLED
+          value: "true"
+        - name: LIDAR_PORT
+          value: "/dev/ttyUSB0"
         - name: CUDA_VISIBLE_DEVICES
           value: "0"
         volumeMounts:
@@ -779,8 +732,12 @@ spec:
           mountPath: /app/models
         - name: logs
           mountPath: /app/logs
+        - name: dev-usb
+          mountPath: /dev/ttyUSB0
         securityContext:
           privileged: true  # For hardware access
+        devices:
+        - /dev/ttyUSB0:/dev/ttyUSB0  # LiDAR device
       volumes:
       - name: zed-sdk
         hostPath:
@@ -791,248 +748,9 @@ spec:
       - name: logs
         persistentVolumeClaim:
           claimName: dursun-logs-pvc
-```
-
-### 2. **CI/CD Pipeline (Enhanced)**
-
-```yaml
-# .github/workflows/advanced-ci-cd.yml
-name: Advanced CI/CD Pipeline
-
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main]
-
-jobs:
-  code-quality:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    
-    - name: Code Quality Checks
-      run: |
-        pip install black ruff mypy bandit safety
-        black --check .
-        ruff check .
-        mypy . --ignore-missing-imports
-        bandit -r . -f json -o bandit-report.json
-        safety check
-
-  unit-tests:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.8, 3.9, 3.10, 3.11]
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
-    
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-        pip install pytest pytest-cov pytest-mock
-    
-    - name: Run Unit Tests
-      run: |
-        pytest tests/unit/ --cov=core --cov=modules --cov-report=xml --cov-report=term-missing
-        coverage report --fail-under=85
-
-  integration-tests:
-    runs-on: ubuntu-latest
-    services:
-      redis:
-        image: redis:7
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      influxdb:
-        image: influxdb:2.0
-        env:
-          INFLUXDB_DB: testdb
-          INFLUXDB_ADMIN_USER: admin
-          INFLUXDB_ADMIN_PASSWORD: password
-    
-    steps:
-    - uses: actions/checkout@v4
-    - name: Integration Tests
-      run: |
-        pytest tests/integration/ -v --tb=short
-        pytest tests/performance/ --benchmark-only
-
-  security-tests:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Security Scanning
-      run: |
-        pip install safety bandit semgrep
-        safety check --json
-        bandit -r . -f json
-        semgrep --config=auto . --json
-
-  build-and-deploy:
-    needs: [code-quality, unit-tests, integration-tests, security-tests]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Build Docker Images
-      run: |
-        docker build -t dursun:v2.0-zed-imu -f Dockerfile.zed .
-        docker build -t dursun-frontend:v2.0 ./web_interface/frontend
-    
-    - name: Run Security Scan on Images
-      run: |
-        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-          aquasec/trivy image dursun:v2.0-zed-imu
-    
-    - name: Deploy to Staging
-      run: |
-        kubectl apply -f k8s/staging/ --validate=true
-        kubectl rollout status deployment/dursun-system --timeout=300s
-    
-    - name: Run Smoke Tests
-      run: |
-        python scripts/smoke_tests.py --environment staging --timeout 60
-    
-    - name: Deploy to Production
-      if: success()
-      run: |
-        kubectl apply -f k8s/production/ --validate=true
-        kubectl rollout status deployment/dursun-system --timeout=600s
-```
-
----
-
-## 📈 Metrikler ve İzleme (Gelişmiş)
-
-### 1. **Observability Stack**
-
-#### 1.1 Prometheus Metrics
-```python
-# monitoring/prometheus_metrics.py (yeni dosya)
-from prometheus_client import Counter, Histogram, Gauge, Info
-
-class DursunMetrics:
-    def __init__(self):
-        # Performance metrics
-        self.frame_processing_time = Histogram(
-            'dursun_frame_processing_seconds',
-            'Time spent processing frames',
-            ['processor_type', 'camera_type']
-        )
-        
-        self.imu_processing_time = Histogram(
-            'dursun_imu_processing_seconds',
-            'Time spent processing IMU data'
-        )
-        
-        # System health metrics
-        self.camera_status = Gauge(
-            'dursun_camera_status',
-            'Camera connection status',
-            ['camera_type']
-        )
-        
-        self.imu_calibration_status = Gauge(
-            'dursun_imu_calibration_status',
-            'IMU calibration status'
-        )
-        
-        # Safety metrics
-        self.emergency_stops_total = Counter(
-            'dursun_emergency_stops_total',
-            'Total number of emergency stops',
-            ['reason']
-        )
-        
-        self.safety_violations_total = Counter(
-            'dursun_safety_violations_total',
-            'Total safety violations',
-            ['violation_type']
-        )
-        
-        # Business metrics
-        self.autonomous_distance_km = Counter(
-            'dursun_autonomous_distance_km_total',
-            'Total autonomous distance traveled'
-        )
-        
-        self.lane_changes_total = Counter(
-            'dursun_lane_changes_total',
-            'Total lane changes performed',
-            ['change_type']
-        )
-```
-
-### 2. **Distributed Tracing**
-
-#### 2.1 OpenTelemetry Integration
-```python
-# monitoring/tracing.py (gelişmiş)
-from opentelemetry import trace, metrics
-from opentelemetry.exporter.jaeger.thrift import JaegerExporter
-from opentelemetry.exporter.prometheus import PrometheusMetricReader
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.metrics import MeterProvider
-
-class DistributedTracing:
-    def __init__(self):
-        # Setup tracing
-        trace.set_tracer_provider(TracerProvider())
-        self.tracer = trace.get_tracer(__name__)
-        
-        # Setup metrics
-        metrics.set_meter_provider(MeterProvider())
-        self.meter = metrics.get_meter(__name__)
-        
-        # Exporters
-        self.setup_exporters()
-    
-    def trace_processing_pipeline(self, frame_data, imu_data):
-        """Complete processing pipeline tracing"""
-        with self.tracer.start_as_current_span("process_frame_pipeline") as span:
-            span.set_attribute("frame.width", frame_data.shape[1])
-            span.set_attribute("frame.height", frame_data.shape[0])
-            span.set_attribute("camera.type", frame_data.camera_type)
-            span.set_attribute("imu.calibrated", imu_data.get('is_calibrated', False))
-            
-            # YOLO detection
-            with self.tracer.start_as_current_span("yolo_detection") as yolo_span:
-                detections = self.process_yolo(frame_data)
-                yolo_span.set_attribute("detections.count", len(detections))
-            
-            # Lane detection
-            with self.tracer.start_as_current_span("lane_detection") as lane_span:
-                lanes = self.process_lanes(frame_data)
-                lane_span.set_attribute("lanes.count", len(lanes))
-                lane_span.set_attribute("lanes.quality", lanes.detection_quality)
-            
-            # IMU processing
-            with self.tracer.start_as_current_span("imu_processing") as imu_span:
-                motion = self.process_imu(imu_data)
-                imu_span.set_attribute("motion.confidence", motion.motion_confidence)
-                imu_span.set_attribute("vehicle.heading", motion.heading)
-            
-            # Sensor fusion
-            with self.tracer.start_as_current_span("sensor_fusion") as fusion_span:
-                fused_data = self.fuse_sensors(detections, lanes, motion)
-                fusion_span.set_attribute("fusion.quality", fused_data.quality)
-            
-            return fused_data
+      - name: dev-usb
+        hostPath:
+          path: /dev/ttyUSB0
 ```
 
 ---
@@ -1041,26 +759,28 @@ class DistributedTracing:
 
 ### Kritik Öncelik (Q1 2025) ✅ Tamamlandı
 1. **✅ ZED 2i IMU Entegrasyonu** - Sensor fusion, motion tracking
-2. **✅ Enhanced Camera Management** - Hot-swap, auto-reconnection
-3. **✅ Advanced Depth Processing** - 3D obstacle detection, point clouds
-4. **✅ Safety Monitoring** - ISO 26262, watchdog, emergency stop
-5. **✅ Performance Optimization** - Memory management, async processing
+2. **✅ RPLIDAR A1 Entegrasyonu** - 2D laser scanning, obstacle detection
+3. **✅ Enhanced Camera Management** - Hot-swap, auto-reconnection
+4. **✅ Advanced Depth Processing** - 3D obstacle detection, point clouds
+5. **✅ Safety Monitoring** - ISO 26262, watchdog, emergency stop
+6. **✅ Performance Optimization** - Memory management, async processing
+7. **✅ Comprehensive Testing** - >90% code coverage, hardware mocking
 
 ### Yüksek Öncelik (Q1-Q2 2025)
-1. **SLAM ve Spatial Mapping** - Visual-Inertial SLAM, occupancy grid
-2. **Advanced Path Planning** - A*, RRT, MPC controller
-3. **Machine Learning Pipeline** - Custom training, behavioral cloning
-4. **Advanced Sensor Integration** - LiDAR, GPS fusion
+1. **2D SLAM ve Mapping** - Hector SLAM, occupancy grid mapping
+2. **Advanced Path Planning** - A*, RRT*, MPC controller
+3. **Enhanced Sensor Fusion** - Multi-modal Kalman filter
+4. **Machine Learning Pipeline** - Custom training, LiDAR ML models
 
 ### Orta Öncelik (Q2-Q3 2025)
-1. **Simulation Environment** - Physics-based testing, scenario generation
-2. **Cloud Integration** - Fleet management, telemetry analytics
-3. **Advanced Web UI** - 3D visualization, real-time collaboration
-4. **Database Integration** - Time series, analytics
+1. **3D LiDAR Integration** - Velodyne/Ouster support
+2. **Behavior Planning** - High-level decision making
+3. **Advanced Web UI** - 3D visualization, SLAM maps
+4. **Database Integration** - Time series, spatial queries
 
 ### Düşük Öncelik (Q3-Q4 2025)
-1. **Edge Computing Optimization** - TensorRT, model quantization
-2. **Cybersecurity** - Secure communication, intrusion detection
+1. **Cloud Integration** - Fleet management, analytics
+2. **Edge Computing Optimization** - TensorRT, model quantization
 3. **Mobile App** - Remote monitoring, control
 4. **Third-party Integrations** - ROS, CARLA, other platforms
 
@@ -1069,13 +789,15 @@ class DistributedTracing:
 ### Tek Araç Performansı
 - **Otonom Sürüş Süresi**: >95% (manuel müdahale olmadan)
 - **Güvenlik Olayları**: <1 olay/1000km
-- **Navigasyon Doğruluğu**: <10cm lateral deviation
+- **Navigasyon Doğruluğu**: <15cm lateral deviation (2D SLAM ile)
 - **Sistem Uptime**: >99.9%
+- **Multi-Sensor Fusion**: <100ms latency
 
 ### Geliştirme Metrikleri
 - **Kod Kapsamı**: >90%
+- **Test Coverage**: Unit + Integration + Hardware
 - **Deployment Frequency**: Haftalık
 - **Mean Time to Recovery**: <5 dakika
 - **Technical Debt Ratio**: <10%
 
-Bu güncellenmiş PRD, ZED 2i IMU entegrasyonu ile birlikte sistemin mevcut durumunu ve gelecek hedeflerini detaylı şekilde ortaya koymaktadır. Sensor fusion, SLAM, advanced path planning gibi kritik özellikler önceliklendirilmiş ve implementasyon roadmap'i netleştirilmiştir.
+Bu güncellenmiş PRD, ZED 2i IMU + RPLIDAR A1 entegrasyonu ile birlikte sistemin mevcut durumunu ve gelecek hedeflerini detaylı şekilde ortaya koymaktadır. 2D SLAM, advanced path planning ve multi-modal sensor fusion gibi kritik özellikler önceliklendirilmiş ve implementasyon roadmap'i netleştirilmiştir.
