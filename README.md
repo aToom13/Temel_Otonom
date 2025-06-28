@@ -50,28 +50,13 @@ Projeyi yerel makinenizde kurmak ve çalıştırmak için aşağıdaki adımlar�
 Projenin ana Python uygulamasını başlatmak için:
 
 ```bash
-python main.py
+python run.py
 ```
 Bu komut, bilgisayar görüşü ve kontrol mantığını başlatacaktır.
 
-### Web Arayüzünü Çalıştırma
-
-Web arayüzü, sistemin durumunu izlemek ve kontrol etmek için kullanılır.
-
-1.  **Web Arayüzü Dizinine Gidin:**
-    ```bash
-    cd web_interface
-    ```
-
-2.  **Flask Uygulamasını Başlatın:**
-    ```bash
-    python app.py
-    ```
-    Uygulama varsayılan olarak `http://127.0.0.1:5000` adresinde çalışacaktır. Web tarayıcınızdan bu adrese giderek arayüze erişebilirsiniz.
-
 ## Proje Yapısı
 
-*   `main.py`: Projenin ana yürütülebilir dosyası.
+*   `run.py`: Projenin ana yürütülebilir dosyası.
 *   `requirements.txt`: Python bağımlılıklarını listeler.
 *   `arduino/`: Arduino kartına yüklenecek bellenim kodunu içerir.
 *   `models/`: Makine öğrenimi modellerini (`.pt` dosyaları) barındırır.
