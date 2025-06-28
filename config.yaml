@@ -1,0 +1,83 @@
+# Dursun Projesi Konfigürasyon Dosyası
+# Tüm sabitler ve parametreler buradan yönetilir.
+
+serial:
+  port: COM3  # Windows için örnek port
+  baud_rate: 9600
+
+models:
+  yolo_traffic_sign: models/tabela.pt
+  yolo_lane: models/serit.pt
+  yolo_seg: models/yolov8n-seg.pt
+  yolo_default: yolov8n.pt
+
+camera:
+  zed_resolution: HD720  # HD720, HD1080, HD2K
+  zed_fps: 30
+  fallback_webcam_index: 0
+  auto_reconnect: true
+  reconnect_interval: 5.0
+  frame_timeout: 1.0
+  depth_mode: PERFORMANCE  # PERFORMANCE, QUALITY, ULTRA
+  coordinate_units: METER  # METER, CENTIMETER, MILLIMETER
+
+imu:
+  history_size: 100
+  motion_threshold: 0.1  # m/s
+  stationary_threshold: 0.05  # m/s
+  kalman_process_noise: 0.01
+  kalman_measurement_noise: 0.1
+  calibration_samples: 100
+  gravity_compensation: true
+  orientation_filter_alpha: 0.98
+
+lane_detection:
+  history_size: 10
+  confidence_threshold: 0.5
+  temporal_smoothing: 0.3
+  lane_departure_threshold: 0.3
+  lane_change_threshold: 0.5
+  polynomial_degree: 2
+  roi_top: 0.6
+  roi_bottom: 0.95
+
+lidar:
+  port: /dev/ttyUSB0  # Linux: /dev/ttyUSB0, Windows: COM4
+  baudrate: 115200
+  timeout: 3.0
+  max_distance: 12.0  # meters (RPLIDAR A1 max range)
+  min_distance: 0.15  # meters (RPLIDAR A1 min range)
+  angle_resolution: 1.0  # degrees
+  history_size: 10
+  clustering_distance: 0.3  # meters
+  min_cluster_size: 3
+  safety_zones:
+    immediate: 0.5  # meters
+    warning: 1.0    # meters
+    caution: 2.0    # meters
+  scan_frequency: 10.0  # Hz
+  filter_noise: true
+  median_filter_size: 3
+
+thresholds:
+  depth_obstacle_mm: 2000
+
+logging:
+  level: INFO
+  file: logs/dursun.log
+  console_level: WARNING
+
+performance:
+  max_memory_percent: 80.0
+  async_workers: 4
+  queue_size: 100
+
+safety:
+  watchdog_timeout: 1.0
+  health_check_interval: 0.5
+  max_safety_events: 1000
+  performance_thresholds:
+    cpu_percent: 90.0
+    memory_percent: 85.0
+    processing_latency: 0.5
+    frame_rate: 10.0
