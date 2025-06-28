@@ -51,6 +51,7 @@ function App() {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'dashboard':
+<<<<<<< HEAD
         return (
           <div className="dashboard-container">
             <RealTimeDashboard />
@@ -59,6 +60,9 @@ function App() {
             </div>
           </div>
         );
+=======
+        return <RealTimeDashboard />;
+>>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
       
       case 'raw':
         return (
@@ -211,6 +215,7 @@ function App() {
     }
   };
 
+<<<<<<< HEAD
   const renderDashboardTelemetry = () => (
     <div className="telemetry-grid">
       <div className="telemetry-card">
@@ -232,6 +237,8 @@ function App() {
     </div>
   );
 
+=======
+>>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
   return (
     <div className="app-container">
       <div className="main-panels">

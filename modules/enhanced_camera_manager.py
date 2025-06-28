@@ -220,6 +220,7 @@ class EnhancedCameraManager:
             return False
     
     def _init_webcam(self) -> bool:
+<<<<<<< HEAD
         """Webcam'i başlat ve uygun bir tane bul"""
         try:
             # Birden fazla kamera indeksini ve backend'i dene
@@ -235,6 +236,13 @@ class EnhancedCameraManager:
                 logger.error("No available webcam found")
                 return False
 
+=======
+        """Webcam'i başlat"""
+        try:
+            webcam_index = self.config.get('fallback_webcam_index', 0)
+            self.webcam = cv2.VideoCapture(webcam_index)
+            
+>>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
             if not self.webcam.isOpened():
                 logger.error("Webcam could not be opened")
                 return False

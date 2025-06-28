@@ -40,7 +40,11 @@ def get_arduino_data():
 
 # Örnek: Gerçek zamanlı kamera frame'i gönderen event
 def send_camera_frame():
+<<<<<<< HEAD
     cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+=======
+    cap = cv2.VideoCapture(0)
+>>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
     if not cap.isOpened():
         print("Kamera açılamadı!")
         return

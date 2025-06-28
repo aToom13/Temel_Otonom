@@ -33,6 +33,16 @@ const RealTimeDashboard = () => {
     timestamps: []
   });
 
+<<<<<<< HEAD
+=======
+  const [mapData, setMapData] = useState({
+    occupancyGrid: null,
+    robotPosition: { x: 0, y: 0 },
+    plannedPath: [],
+    obstacles: []
+  });
+
+>>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
   const [systemMetrics, setSystemMetrics] = useState({
     cpu: 0,
     memory: 0,

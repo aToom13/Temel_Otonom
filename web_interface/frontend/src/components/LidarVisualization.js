@@ -1,10 +1,18 @@
+<<<<<<< HEAD
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+=======
+import React, { useState, useEffect, useRef } from 'react';
+>>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
 import './LidarVisualization.css';
 
 const LidarVisualization = () => {
   const [lidarData, setLidarData] = useState(null);
   const [lidarStatus, setLidarStatus] = useState(null);
   const canvasRef = useRef(null);
+<<<<<<< HEAD
+=======
+  const animationRef = useRef(null);
+>>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
 
   useEffect(() => {
     // Fetch LiDAR data periodically
@@ -38,7 +46,17 @@ const LidarVisualization = () => {
     return () => clearInterval(interval);
   }, []);
 
+<<<<<<< HEAD
   const drawLidarData = useCallback(() => {
+=======
+  useEffect(() => {
+    if (lidarData && canvasRef.current) {
+      drawLidarData();
+    }
+  }, [lidarData]);
+
+  const drawLidarData = () => {
+>>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
     const canvas = canvasRef.current;
     if (!canvas || !lidarData) return;
 
@@ -70,6 +88,7 @@ const LidarVisualization = () => {
 
     // Draw scan line (rotating indicator)
     drawScanLine(ctx, centerX, centerY, scale);
+<<<<<<< HEAD
   }, [lidarData]);
 
   useEffect(() => {
@@ -77,6 +96,9 @@ const LidarVisualization = () => {
       drawLidarData();
     }
   }, [lidarData, drawLidarData]);
+=======
+  };
+>>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
 
   const drawGrid = (ctx, centerX, centerY, scale) => {
     ctx.strokeStyle = '#333';
