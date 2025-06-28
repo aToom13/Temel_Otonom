@@ -13,6 +13,7 @@ from modules.depth_analizer import DepthAnalyzer
 from modules.road_processor import RoadProcessor
 from modules.direction_controller import DirectionController
 from modules.arduino_cominicator import ArduinoCommunicator
+from modules.enhanced_camera_manager import EnhancedCameraManager
 
 # Import performance and safety modules
 from core.performance.memory_manager import memory_manager
@@ -26,10 +27,10 @@ if os.path.exists(config_file):
         config = yaml.safe_load(f)
     log_conf = config.get('logging', {})
     log_level = getattr(logging, log_conf.get('level', 'INFO').upper(), logging.INFO)
-    log_file = log_conf.get('file', 'dursun.log')
+    log_file = log_conf.get('file', 'logs/dursun.log')
 else:
     log_level = logging.INFO
-    log_file = 'dursun.log'
+    log_file = 'logs/dursun.log'
 
 # Enhanced logging configuration
 logging.basicConfig(
@@ -43,8 +44,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Global variables for sharing data between threads
-camera_frame = None
-camera_frame_lock = threading.Lock()
+camera_manager = None
 processed_frame = None
 processed_frame_lock = threading.Lock()
 detection_results = {}
@@ -57,8 +57,8 @@ direction_data = {}
 direction_data_lock = threading.Lock()
 arduino_status = "Disconnected"
 arduino_status_lock = threading.Lock()
-zed_camera_status = "Disconnected"
-zed_camera_status_lock = threading.Lock()
+imu_data = {}
+imu_data_lock = threading.Lock()
 
 # Performance metrics
 performance_metrics = {
@@ -90,25 +90,39 @@ def update_performance_metrics(processing_time: float):
 def create_camera_health_callback():
     """Kamera sağlık kontrolü callback'i oluştur"""
     def check_camera_health():
-        with zed_camera_status_lock:
-            status = zed_camera_status
+        if camera_manager:
+            camera_status = camera_manager.get_camera_status()
+            
+            if camera_status.is_connected:
+                return HealthStatus(
+                    component=SystemComponent.CAMERA,
+                    status=SafetyState.SAFE,
+                    message=f"{camera_status.camera_type} camera operating normally",
+                    timestamp=time.time(),
+                    metrics={
+                        "camera_type": camera_status.camera_type,
+                        "resolution": camera_status.resolution,
+                        "fps": camera_status.fps,
+                        "has_depth": camera_status.has_depth,
+                        "has_imu": camera_status.has_imu
+                    }
+                )
+            else:
+                return HealthStatus(
+                    component=SystemComponent.CAMERA,
+                    status=SafetyState.CRITICAL,
+                    message="Camera disconnected",
+                    timestamp=time.time(),
+                    metrics={"camera_type": "None"}
+                )
         
-        if "Connected" in status:
-            return HealthStatus(
-                component=SystemComponent.CAMERA,
-                status=SafetyState.SAFE,
-                message="Camera operating normally",
-                timestamp=time.time(),
-                metrics={"status": status}
-            )
-        else:
-            return HealthStatus(
-                component=SystemComponent.CAMERA,
-                status=SafetyState.WARNING if "Webcam" in status else SafetyState.CRITICAL,
-                message=f"Camera issue: {status}",
-                timestamp=time.time(),
-                metrics={"status": status}
-            )
+        return HealthStatus(
+            component=SystemComponent.CAMERA,
+            status=SafetyState.CRITICAL,
+            message="Camera manager not initialized",
+            timestamp=time.time(),
+            metrics={}
+        )
     
     return check_camera_health
 
@@ -164,139 +178,94 @@ def create_processing_health_callback():
     
     return check_processing_health
 
+def create_imu_health_callback():
+    """IMU sağlık kontrolü callback'i oluştur"""
+    def check_imu_health():
+        with imu_data_lock:
+            current_imu_data = imu_data.copy()
+        
+        if camera_manager and camera_manager.has_imu_capability():
+            if current_imu_data.get('is_calibrated', False):
+                return HealthStatus(
+                    component=SystemComponent.PROCESSING,  # IMU is part of processing
+                    status=SafetyState.SAFE,
+                    message="IMU operating normally",
+                    timestamp=time.time(),
+                    metrics={
+                        "is_calibrated": current_imu_data.get('is_calibrated', False),
+                        "motion_confidence": current_imu_data.get('motion_confidence', 0.0),
+                        "heading": current_imu_data.get('heading_degrees', 0.0)
+                    }
+                )
+            else:
+                return HealthStatus(
+                    component=SystemComponent.PROCESSING,
+                    status=SafetyState.WARNING,
+                    message="IMU calibrating",
+                    timestamp=time.time(),
+                    metrics={"is_calibrated": False}
+                )
+        else:
+            return HealthStatus(
+                component=SystemComponent.PROCESSING,
+                status=SafetyState.WARNING,
+                message="IMU not available",
+                timestamp=time.time(),
+                metrics={"has_imu": False}
+            )
+    
+    return check_imu_health
+
 # --- Enhanced Camera Stream ---
 def camera_stream_thread():
-    global camera_frame, zed_camera_status
+    global camera_manager, processed_frame
     
-    camera = None
-    zed = None
+    camera_manager = EnhancedCameraManager()
     
-    try:
-        # Try ZED camera first
-        import pyzed.sl as sl
-        zed = sl.Camera()
-        init_params = sl.InitParameters()
-        
-        # Load camera config
-        if os.path.exists(config_file):
-            camera_config = config.get('camera', {})
-            resolution_str = camera_config.get('zed_resolution', 'HD720')
-            fps = camera_config.get('zed_fps', 30)
-            
-            # Set resolution
-            if resolution_str == 'HD720':
-                init_params.camera_resolution = sl.RESOLUTION.HD720
-            elif resolution_str == 'HD1080':
-                init_params.camera_resolution = sl.RESOLUTION.HD1080
-            elif resolution_str == 'HD2K':
-                init_params.camera_resolution = sl.RESOLUTION.HD2K
-            
-            init_params.camera_fps = fps
-        else:
-            init_params.camera_resolution = sl.RESOLUTION.HD720
-            init_params.camera_fps = 30
-        
-        err = zed.open(init_params)
-        if err != sl.ERROR_CODE.SUCCESS:
-            logger.error(f"ZED Camera Error: {err}. Falling back to webcam.")
-            with zed_camera_status_lock:
-                zed_camera_status = f"Error: {err}"
-            zed = None
-        else:
-            logger.info("ZED Camera Opened Successfully.")
-            with zed_camera_status_lock:
-                zed_camera_status = "Connected"
-            
-            runtime_parameters = sl.RuntimeParameters()
-            image = sl.Mat()
-            depth = sl.Mat()
-            
-            while True:
-                if zed.grab(runtime_parameters) == sl.ERROR_CODE.SUCCESS:
-                    zed.retrieve_image(image, sl.VIEW.LEFT)
-                    zed.retrieve_measure(depth, sl.MEASURE.DEPTH)
-                    
-                    with camera_frame_lock:
-                        camera_frame = {
-                            'rgb': image.get_data(),
-                            'depth': depth.get_data()
-                        }
-                else:
-                    logger.warning("Failed to grab ZED frame")
-                
-                time.sleep(0.01)
-                
-    except ImportError:
-        logger.warning("pyzed not found. Using webcam as fallback.")
-        with zed_camera_status_lock:
-            zed_camera_status = "pyzed not found. Using Webcam."
-    except Exception as e:
-        logger.error(f"ZED camera initialization failed: {e}")
-        with zed_camera_status_lock:
-            zed_camera_status = f"ZED Error: {e}"
+    if not camera_manager.start():
+        logger.error("Failed to start camera system")
+        return
     
-    # Fallback to webcam
-    if zed is None:
+    logger.info("Enhanced camera system started")
+    
+    while True:
         try:
-            webcam_index = 0
-            if os.path.exists(config_file):
-                webcam_index = config.get('camera', {}).get('fallback_webcam_index', 0)
+            frame_data = camera_manager.capture_frame()
             
-            camera = cv2.VideoCapture(webcam_index)
-            if not camera.isOpened():
-                logger.error("Error: Could not open webcam.")
-                with zed_camera_status_lock:
-                    zed_camera_status = "Error: Webcam not found."
-                return
-            else:
-                with zed_camera_status_lock:
-                    zed_camera_status = "Webcam Active (ZED not available)"
+            if frame_data:
+                with processed_frame_lock:
+                    processed_frame = frame_data.rgb
                 
-                logger.info(f"Webcam opened on index {webcam_index}")
-                
-                while True:
-                    ret, frame = camera.read()
-                    if not ret:
-                        logger.error("Failed to grab frame from webcam.")
-                        break
-                    
-                    with camera_frame_lock:
-                        camera_frame = {
-                            'rgb': frame,
-                            'depth': None
-                        }
-                    
-                    time.sleep(0.01)
-                    
+                # Update IMU data if available
+                if camera_manager.has_imu_capability():
+                    current_imu_data = camera_manager.get_imu_data()
+                    with imu_data_lock:
+                        imu_data.update(current_imu_data)
+            
+            time.sleep(0.01)  # ~100 FPS max
+            
         except Exception as e:
-            logger.error(f"Webcam initialization failed: {e}")
-            with zed_camera_status_lock:
-                zed_camera_status = f"Webcam Error: {e}"
-    
-    # Cleanup
-    if zed:
-        zed.close()
-    if camera:
-        camera.release()
+            logger.error(f"Camera stream error: {e}")
+            time.sleep(0.1)
 
 # --- Enhanced Processing Threads ---
 def yolo_processor_thread():
-    global camera_frame, processed_frame, detection_results
+    global processed_frame, detection_results
     
     yolo_processor = YoloProcessor()
     
     while True:
         start_time = time.time()
         
-        with camera_frame_lock:
-            frame_data = camera_frame.copy() if camera_frame is not None else None
+        with processed_frame_lock:
+            frame = processed_frame.copy() if processed_frame is not None else None
         
-        if frame_data is not None and frame_data['rgb'] is not None:
+        if frame is not None:
             try:
                 # Create processing task
                 task = ProcessingTask(
                     id=f"yolo_{int(time.time() * 1000)}",
-                    data=frame_data['rgb'],
+                    data=frame,
                     processor=yolo_processor.process_frame,
                     priority=2  # High priority
                 )
@@ -304,7 +273,7 @@ def yolo_processor_thread():
                 # Submit to async processor
                 if async_processor.submit_task(task):
                     # For now, process synchronously
-                    proc_frame, det_results = yolo_processor.process_frame(frame_data['rgb'])
+                    proc_frame, det_results = yolo_processor.process_frame(frame)
                     
                     with processed_frame_lock:
                         processed_frame = proc_frame
@@ -320,19 +289,19 @@ def yolo_processor_thread():
         time.sleep(0.1)
 
 def lane_detector_thread():
-    global camera_frame, lane_results
+    global processed_frame, lane_results
     
     lane_detector = EnhancedLaneDetector()
     
     while True:
         start_time = time.time()
         
-        with camera_frame_lock:
-            frame_data = camera_frame.copy() if camera_frame is not None else None
+        with processed_frame_lock:
+            frame = processed_frame.copy() if processed_frame is not None else None
         
-        if frame_data is not None and frame_data['rgb'] is not None:
+        if frame is not None:
             try:
-                lane_res = lane_detector.detect_lanes_with_tracking(frame_data['rgb'])
+                lane_res = lane_detector.detect_lanes_with_tracking(frame)
                 
                 with lane_results_lock:
                     lane_results = {
@@ -363,7 +332,7 @@ def lane_detector_thread():
         time.sleep(0.1)
 
 def depth_analyzer_thread():
-    global camera_frame, obstacle_results, zed_camera_status
+    global camera_manager, obstacle_results
     
     # Import advanced depth processor
     from core.algorithms.advanced_depth_processing import AdvancedDepthProcessor
@@ -372,16 +341,16 @@ def depth_analyzer_thread():
     while True:
         start_time = time.time()
         
-        with camera_frame_lock:
-            frame_data = camera_frame.copy() if camera_frame is not None else None
-        with zed_camera_status_lock:
-            zed_status = zed_camera_status
-        
-        if frame_data is not None:
+        if camera_manager:
             try:
-                if "Connected" in zed_status and frame_data.get('depth') is not None:
+                frame_data = camera_manager.capture_frame()
+                
+                if frame_data and camera_manager.has_depth_capability() and frame_data.depth is not None:
                     # Use advanced depth processing
-                    depth_result = depth_analyzer.process_depth_map(frame_data['depth'])
+                    depth_result = depth_analyzer.process_depth_map(
+                        frame_data.depth, 
+                        frame_data.confidence
+                    )
                     
                     with obstacle_results_lock:
                         obstacle_results = {
@@ -398,12 +367,18 @@ def depth_analyzer_thread():
                             'processing_quality': depth_result['processing_quality'],
                             'status': "Advanced depth analysis active"
                         }
-                else:
+                elif frame_data and frame_data.rgb is not None:
                     # Fallback to basic analysis
-                    basic_result = self._basic_obstacle_detection(frame_data['rgb'])
+                    basic_result = _basic_obstacle_detection(frame_data.rgb)
                     
                     with obstacle_results_lock:
                         obstacle_results = basic_result
+                else:
+                    with obstacle_results_lock:
+                        obstacle_results = {
+                            'obstacle_detected': False,
+                            'status': 'No camera data available'
+                        }
                 
                 processing_time = time.time() - start_time
                 logger.debug(f"Depth analysis completed in {processing_time:.3f}s")
@@ -429,7 +404,7 @@ def _basic_obstacle_detection(rgb_frame):
     }
 
 def road_processor_thread():
-    global detection_results, lane_results, obstacle_results, direction_data
+    global detection_results, lane_results, obstacle_results, direction_data, imu_data
     
     road_processor = RoadProcessor()
     
@@ -443,15 +418,30 @@ def road_processor_thread():
                 lanes = lane_results.copy()
             with obstacle_results_lock:
                 obs = obstacle_results.copy()
+            with imu_data_lock:
+                imu = imu_data.copy()
             
             combined_data = {
                 "detections": det,
                 "lanes": lanes,
                 "obstacles": obs,
+                "imu": imu,
                 "timestamp": time.time()
             }
             
             dir_data = road_processor.process_road(combined_data)
+            
+            # Add IMU-based enhancements
+            if imu and camera_manager and camera_manager.has_imu_capability():
+                # Add heading information
+                dir_data['vehicle_heading'] = imu.get('heading_degrees', 0.0)
+                dir_data['vehicle_tilt'] = {
+                    'roll': imu.get('roll_degrees', 0.0),
+                    'pitch': imu.get('pitch_degrees', 0.0)
+                }
+                dir_data['is_moving'] = imu.get('is_moving', False)
+                dir_data['speed_estimate'] = imu.get('speed_kmh', 0.0)
+                dir_data['motion_confidence'] = imu.get('motion_confidence', 0.0)
             
             with direction_data_lock:
                 direction_data = dir_data
@@ -558,6 +548,42 @@ def start_processing_threads():
     
     logger.info("All processing threads started successfully")
 
+def get_system_status():
+    """Sistem durumunu al"""
+    camera_status = camera_manager.get_camera_status() if camera_manager else None
+    
+    with arduino_status_lock:
+        arduino_stat = arduino_status
+    with detection_results_lock:
+        det_results = detection_results.copy()
+    with lane_results_lock:
+        lane_res = lane_results.copy()
+    with obstacle_results_lock:
+        obs_results = obstacle_results.copy()
+    with direction_data_lock:
+        dir_data = direction_data.copy()
+    with imu_data_lock:
+        imu_dat = imu_data.copy()
+    
+    return {
+        "camera_status": {
+            "is_connected": camera_status.is_connected if camera_status else False,
+            "camera_type": camera_status.camera_type if camera_status else "None",
+            "resolution": camera_status.resolution if camera_status else (0, 0),
+            "fps": camera_status.fps if camera_status else 0.0,
+            "has_depth": camera_status.has_depth if camera_status else False,
+            "has_imu": camera_status.has_imu if camera_status else False
+        },
+        "arduino_status": arduino_stat,
+        "detection_results": det_results,
+        "lane_results": lane_res,
+        "obstacle_results": obs_results,
+        "direction_data": dir_data,
+        "imu_data": imu_dat,
+        "safety_status": safety_monitor.get_safety_status(),
+        "performance_metrics": performance_metrics.copy()
+    }
+
 def main():
     """Ana fonksiyon"""
     logger.info("=== Dursun Enhanced System Starting ===")
@@ -576,7 +602,10 @@ def main():
                     fps = performance_metrics['fps']
                 
                 safety_status = safety_monitor.get_safety_status()
-                logger.info(f"System Status - FPS: {fps:.1f}, Safety: {safety_status['current_state']}")
+                camera_status = camera_manager.get_camera_status() if camera_manager else None
+                camera_type = camera_status.camera_type if camera_status else "None"
+                
+                logger.info(f"System Status - FPS: {fps:.1f}, Camera: {camera_type}, Safety: {safety_status['current_state']}")
                 
     except KeyboardInterrupt:
         logger.info("Shutting down enhanced system...")
@@ -585,6 +614,9 @@ def main():
         safety_monitor.stop_monitoring()
         async_processor.stop()
         memory_manager.stop_monitoring()
+        
+        if camera_manager:
+            camera_manager.stop()
         
         logger.info("Enhanced system shutdown complete")
 
