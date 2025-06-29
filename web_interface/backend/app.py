@@ -40,23 +40,42 @@ def get_arduino_data():
 
 # Örnek: Gerçek zamanlı kamera frame'i gönderen event
 def send_camera_frame():
-<<<<<<< HEAD
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-=======
-    cap = cv2.VideoCapture(0)
->>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
-    if not cap.isOpened():
-        print("Kamera açılamadı!")
+    # Birden fazla kamera indeksini dene
+    cap = None
+    for i in range(5):
+        try:
+            cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
+            if cap.isOpened():
+                ret, test_frame = cap.read()
+                if ret and test_frame is not None:
+                    print(f"Kamera {i} indeksinde bulundu")
+                    break
+                else:
+                    cap.release()
+                    cap = None
+        except Exception as e:
+            print(f"Kamera {i} açılamadı: {e}")
+            if cap:
+                cap.release()
+            cap = None
+    
+    if not cap or not cap.isOpened():
+        print("Hiçbir kamera bulunamadı!")
         return
+    
     while True:
-        ret, frame = cap.read()
-        if not ret:
-            continue
-        # Görüntüyü JPEG'e çevir
-        _, buffer = cv2.imencode('.jpg', frame)
-        jpg_as_text = base64.b64encode(buffer).decode('utf-8')
-        socketio.emit('camera_frame', {'frame': jpg_as_text})
-        time.sleep(0.1)  # 10 FPS
+        try:
+            ret, frame = cap.read()
+            if not ret:
+                continue
+            # Görüntüyü JPEG'e çevir
+            _, buffer = cv2.imencode('.jpg', frame)
+            jpg_as_text = base64.b64encode(buffer).decode('utf-8')
+            socketio.emit('camera_frame', {'frame': jpg_as_text})
+            time.sleep(0.1)  # 10 FPS
+        except Exception as e:
+            print(f"Frame capture error: {e}")
+            time.sleep(1)
 
 def send_log_updates():
     log_path = os.path.join(os.path.dirname(__file__), '../../logs/dursun.log')

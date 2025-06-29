@@ -220,30 +220,49 @@ class EnhancedCameraManager:
             return False
     
     def _init_webcam(self) -> bool:
-<<<<<<< HEAD
         """Webcam'i başlat ve uygun bir tane bul"""
         try:
             # Birden fazla kamera indeksini ve backend'i dene
             for i in range(5):  # Genellikle ilk birkaç indekste bulunur
-                # CAP_DSHOW, Windows'ta daha kararlı çalışabilir
-                cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
-                if cap.isOpened():
-                    logger.info(f"Webcam found at index {i} using DSHOW backend")
-                    self.webcam = cap
-                    self.config['fallback_webcam_index'] = i  # Bulunan indeksi kaydet
-                    break
+                try:
+                    # CAP_DSHOW, Windows'ta daha kararlı çalışabilir
+                    cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
+                    if cap.isOpened():
+                        # Test frame capture
+                        ret, frame = cap.read()
+                        if ret and frame is not None:
+                            logger.info(f"Webcam found at index {i} using DSHOW backend")
+                            self.webcam = cap
+                            self.config['fallback_webcam_index'] = i  # Bulunan indeksi kaydet
+                            break
+                        else:
+                            cap.release()
+                    else:
+                        cap.release()
+                except Exception as e:
+                    logger.debug(f"Failed to open camera at index {i}: {e}")
+                    continue
             else:
-                logger.error("No available webcam found")
-                return False
+                # Fallback to default backend
+                try:
+                    cap = cv2.VideoCapture(0)
+                    if cap.isOpened():
+                        ret, frame = cap.read()
+                        if ret and frame is not None:
+                            logger.info("Webcam found using default backend")
+                            self.webcam = cap
+                        else:
+                            cap.release()
+                            logger.error("No available webcam found")
+                            return False
+                    else:
+                        logger.error("No available webcam found")
+                        return False
+                except Exception as e:
+                    logger.error(f"Webcam initialization failed: {e}")
+                    return False
 
-=======
-        """Webcam'i başlat"""
-        try:
-            webcam_index = self.config.get('fallback_webcam_index', 0)
-            self.webcam = cv2.VideoCapture(webcam_index)
-            
->>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
-            if not self.webcam.isOpened():
+            if not self.webcam or not self.webcam.isOpened():
                 logger.error("Webcam could not be opened")
                 return False
             

@@ -92,6 +92,7 @@ def mock_cv2():
         mock_cv2.VideoCapture.return_value.read.return_value = (True, np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8))
         mock_cv2.VideoCapture.return_value.get.return_value = 30.0
         mock_cv2.VideoCapture.return_value.set.return_value = True
+        mock_cv2.CAP_DSHOW = 700  # Mock constant
         yield mock_cv2
 
 @pytest.fixture

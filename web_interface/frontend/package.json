@@ -11,10 +11,7 @@
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
-<<<<<<< HEAD
     "axios": "^1.10.0",
-=======
->>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
     "chart.js": "^4.5.0",
     "react": "^19.1.0",
     "react-chartjs-2": "^5.3.0",

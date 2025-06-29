@@ -1,5 +1,4 @@
 :root {
-<<<<<<< HEAD
   --bg-dark: #0d1117;
   --bg-panel: #161b22;
   --text-primary: #f0f6fc;
@@ -10,18 +9,6 @@
   --warning: #d29922;
   --error: #f85149;
   --info: #58a6ff;
-=======
-  --bg-dark: #121212;
-  --bg-panel: #1e1e1e;
-  --text-primary: #e0e0e0;
-  --text-secondary: #a0a0a0;
-  --accent: #bb86fc;
-  --border: #333;
-  --success: #4CAF50;
-  --warning: #FF9800;
-  --error: #F44336;
-  --info: #2196F3;
->>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
 }
 
 * {
@@ -33,7 +20,6 @@
 body {
   background-color: var(--bg-dark);
   color: var(--text-primary);
-<<<<<<< HEAD
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   line-height: 1.6;
   min-height: 100vh;
@@ -65,36 +51,12 @@ h1, h2, h3, h4 {
 
 .left-panel {
   flex: 3;
-=======
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  height: 100vh;
-  overflow: hidden;
-}
-
-.app-container {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-}
-
-.main-panels {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-}
-
-.left-panel {
-  flex: 0 0 70%;
->>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
   display: flex;
   flex-direction: column;
   background-color: var(--bg-panel);
   border-right: 1px solid var(--border);
-<<<<<<< HEAD
   min-height: 0;
   overflow: auto;
-=======
->>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
 }
 
 .tabs {
@@ -105,11 +67,7 @@ h1, h2, h3, h4 {
 }
 
 .tab-button {
-<<<<<<< HEAD
   padding: 10px 16px;
-=======
-  padding: 12px 20px;
->>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
   background: none;
   border: none;
   color: var(--text-secondary);
@@ -118,10 +76,7 @@ h1, h2, h3, h4 {
   transition: all 0.2s;
   white-space: nowrap;
   min-width: fit-content;
-<<<<<<< HEAD
   margin: 0 4px;
-=======
->>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
 }
 
 .tab-button.active {
@@ -133,24 +88,18 @@ h1, h2, h3, h4 {
 .tab-button:hover:not(.active) {
   background-color: rgba(255, 255, 255, 0.05);
   color: var(--text-primary);
-<<<<<<< HEAD
   transform: translateY(-2px);
-=======
->>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
 }
 
 .tab-content {
   flex: 1;
   padding: 15px;
   overflow: auto;
-<<<<<<< HEAD
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   animation: fadeIn 0.3s ease-in-out;
-=======
->>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
 }
 
 .camera-feed {
@@ -161,11 +110,8 @@ h1, h2, h3, h4 {
   align-items: center;
   justify-content: center;
   position: relative;
-<<<<<<< HEAD
   flex: 1;
   min-height: 0;
-=======
->>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
 }
 
 .feed-placeholder {
@@ -204,11 +150,7 @@ h1, h2, h3, h4 {
 .info-item {
   display: flex;
   justify-content: space-between;
-<<<<<<< HEAD
   margin-bottom: 10px;
-=======
-  margin-bottom: 8px;
->>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
   font-size: 0.9rem;
 }
 
@@ -370,7 +312,6 @@ h1, h2, h3, h4 {
 }
 
 .right-panel {
-<<<<<<< HEAD
   flex: 1;
   padding: 15px;
   background-color: var(--bg-panel);
@@ -381,17 +322,6 @@ h1, h2, h3, h4 {
 .telemetry-section {
   margin-bottom: 16px;
   padding: 16px;
-=======
-  flex: 0 0 30%;
-  padding: 15px;
-  background-color: var(--bg-panel);
-  overflow-y: auto;
-}
-
-.telemetry-section {
-  margin-bottom: 20px;
-  padding-bottom: 15px;
->>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
   border-bottom: 1px solid var(--border);
 }
 
@@ -405,17 +335,13 @@ h1, h2, h3, h4 {
   justify-content: space-between;
   padding: 5px 0;
   font-size: 0.9rem;
-<<<<<<< HEAD
   transition: all 0.2s;
-=======
->>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
 }
 
 .data-row span:last-child {
   font-weight: bold;
 }
 
-<<<<<<< HEAD
 /* Dashboard Telemetry Grid */
 .telemetry-grid {
   display: grid;
@@ -454,8 +380,6 @@ h1, h2, h3, h4 {
   color: var(--text-secondary);
 }
 
-=======
->>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
 /* Status indicators */
 .status-connected {
   color: var(--success);
@@ -490,10 +414,7 @@ h1, h2, h3, h4 {
   padding: 15px;
   background-color: var(--bg-panel);
   border-top: 1px solid var(--border);
-<<<<<<< HEAD
   transition: flex-basis 0.3s ease;
-=======
->>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
 }
 
 .log-output {
@@ -509,10 +430,7 @@ h1, h2, h3, h4 {
 .log-entry {
   padding: 3px 0;
   color: #4CAF50;
-<<<<<<< HEAD
   transition: all 0.2s;
-=======
->>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
 }
 
 .log-entry:nth-child(even) {
@@ -520,7 +438,6 @@ h1, h2, h3, h4 {
 }
 
 /* Responsive design */
-<<<<<<< HEAD
 @media (max-width: 1024px) {
   .left-panel {
     flex: 3;
@@ -528,15 +445,6 @@ h1, h2, h3, h4 {
   
   .right-panel {
     flex: 2;
-=======
-@media (max-width: 1200px) {
-  .left-panel {
-    flex: 0 0 65%;
-  }
-  
-  .right-panel {
-    flex: 0 0 35%;
->>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
   }
 }
 
@@ -551,20 +459,12 @@ h1, h2, h3, h4 {
   
   .right-panel {
     flex: 0 0 auto;
-<<<<<<< HEAD
     max-height: 40vh;
   }
   
   .bottom-panel {
     flex: 0 0 auto;
     max-height: 25vh;
-=======
-    max-height: 300px;
-  }
-  
-  .bottom-panel {
-    flex: 0 0 150px;
->>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
   }
   
   .tabs {
@@ -585,7 +485,6 @@ h1, h2, h3, h4 {
   }
 }
 
-<<<<<<< HEAD
 @media (max-width: 480px) {
   .tab-button {
     font-size: 0.8rem;
@@ -623,11 +522,6 @@ h1, h2, h3, h4 {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--accent);
-=======
-/* Animation for smooth transitions */
-.tab-content {
-  animation: fadeIn 0.3s ease-in-out;
->>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
 }
 
 @keyframes fadeIn {
@@ -641,28 +535,6 @@ h1, h2, h3, h4 {
   }
 }
 
-<<<<<<< HEAD
-=======
-/* Loading states */
-.loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-secondary);
-}
-
-.loading::after {
-  content: '';
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--border);
-  border-top: 2px solid var(--accent);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-left: 10px;
-}
-
->>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }

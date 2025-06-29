@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import './index.css';
-import { fetchTelemetry, fetchLogs, fetchArduinoData } from './api';
 import VideoStream from './components/VideoStream';
 import RealTimeDashboard from './components/RealTimeDashboard';
 import LidarVisualization from './components/LidarVisualization';
@@ -14,13 +13,34 @@ function App() {
 
   useEffect(() => {
     const loadData = async () => {
-      const telemetryData = await fetchTelemetry();
-      const logsData = await fetchLogs();
-      const arduinoData = await fetchArduinoData();
-      
-      if (telemetryData) setTelemetry(telemetryData);
-      if (logsData) setLogs(logsData);
-      if (arduinoData) setArduinoData(arduinoData);
+      try {
+        const response = await fetch('/api/status');
+        if (response.ok) {
+          const data = await response.json();
+          
+          // Update telemetry data
+          if (data.direction_data) {
+            setTelemetry({
+              frame_rate: data.performance_metrics?.fps || 0,
+              objects_detected: data.detection_results?.traffic_signs?.length || 0,
+              processing_time: 15, // Placeholder
+              speed: data.direction_data.target_speed || 0,
+              battery: 85, // Placeholder
+              status: data.direction_data.vehicle_status || 'IDLE',
+              temperature: 25 // Placeholder
+            });
+          }
+          
+          // Update Arduino data
+          setArduinoData({
+            status: 'OK',
+            connection: data.arduino_status === 'Connected' ? 'Stable' : 'Disconnected',
+            last_command: 'ACK'
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+      }
     };
     
     loadData();
@@ -51,7 +71,6 @@ function App() {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'dashboard':
-<<<<<<< HEAD
         return (
           <div className="dashboard-container">
             <RealTimeDashboard />
@@ -60,9 +79,6 @@ function App() {
             </div>
           </div>
         );
-=======
-        return <RealTimeDashboard />;
->>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
       
       case 'raw':
         return (
@@ -215,7 +231,6 @@ function App() {
     }
   };
 
-<<<<<<< HEAD
   const renderDashboardTelemetry = () => (
     <div className="telemetry-grid">
       <div className="telemetry-card">
@@ -237,8 +252,6 @@ function App() {
     </div>
   );
 
-=======
->>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
   return (
     <div className="app-container">
       <div className="main-panels">
