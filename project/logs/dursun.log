@@ -1,0 +1,157 @@
+2025-06-29 11:26:25,241 [INFO] MainThread: Safety Monitor initialized
+2025-06-29 11:26:25,262 [INFO] MainThread: Main processing module imported successfully
+2025-06-29 11:26:25,443 [INFO] MainThread: Starting enhanced processing system...
+2025-06-29 11:26:25,451 [INFO] MainThread: Memory monitoring started
+2025-06-29 11:26:25,455 [INFO] MainThread: AsyncProcessor started with 4 workers
+2025-06-29 11:26:25,457 [INFO] MainThread: Watchdog timer started with 1.0s timeout
+2025-06-29 11:26:25,458 [INFO] MainThread: Safety monitoring started
+2025-06-29 11:26:25,458 [INFO] MainThread: Started thread: CameraStream
+2025-06-29 11:26:25,471 [INFO] MainThread: Started thread: LiDARProcessor
+2025-06-29 11:26:25,480 [INFO] MainThread: Started thread: YOLOProcessor
+2025-06-29 11:26:25,483 [ERROR] LiDARProcessor: LiDAR processor thread failed: deque() got an unexpected keyword argument 'maxsize'
+2025-06-29 11:26:25,496 [INFO] MainThread: Started thread: LaneDetector
+2025-06-29 11:26:25,496 [ERROR] CameraStream: Camera stream thread failed: deque() got an unexpected keyword argument 'maxsize'
+2025-06-29 11:26:25,512 [INFO] MainThread: Started thread: DepthAnalyzer
+2025-06-29 11:26:25,530 [WARNING] YOLOProcessor: YOLOv8 model not found at models/tabela.pt. Please download it. Attempting to download yolov8n.pt...
+2025-06-29 11:26:25,530 [WARNING] LaneDetector: Lane model not found at models/serit.pt
+2025-06-29 11:26:25,531 [INFO] MainThread: Started thread: RoadProcessor
+2025-06-29 11:26:25,543 [INFO] MainThread: Started thread: DirectionController
+2025-06-29 11:26:25,550 [INFO] RoadProcessor: RoadProcessor initialized. Default speed: 30 km/h
+2025-06-29 11:26:25,565 [INFO] DirectionController: DirectionController initialized.
+2025-06-29 11:26:25,566 [INFO] MainThread: Started thread: ArduinoComm
+2025-06-29 11:26:25,573 [INFO] Thread-2 (_monitoring_loop): Safety state changed: SAFE -> CRITICAL
+2025-06-29 11:26:25,574 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:26:25,586 [INFO] MainThread: All processing threads started successfully
+2025-06-29 11:26:25,587 [INFO] Thread-2 (_monitoring_loop): Triggering graceful degradation
+2025-06-29 11:26:25,588 [INFO] MainThread: Processing threads started
+2025-06-29 11:26:25,589 [INFO] MainThread: Flask app starting...
+2025-06-29 11:26:25,631 [INFO] MainThread: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.104.230:5000
+2025-06-29 11:26:25,631 [INFO] MainThread: [33mPress CTRL+C to quit[0m
+2025-06-29 11:26:25,678 [INFO] Thread-4 (process_request_thread): 127.0.0.1 - - [29/Jun/2025 11:26:25] "OPTIONS /api/status HTTP/1.1" 200 -
+2025-06-29 11:26:25,688 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:26:25,816 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:26:25,879 [ERROR] YOLOProcessor: Error downloading/loading YOLOv8n model:   Download failure for https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.pt. Environment is not online.
+2025-06-29 11:26:25,879 [ERROR] YOLOProcessor: YoloProcessor initialized without a model. Detection will not work.
+2025-06-29 11:26:25,880 [ERROR] LaneDetector: Failed to load fallback model:   Download failure for https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n-seg.pt. Environment is not online.
+2025-06-29 11:26:25,880 [ERROR] LaneDetector: Lane detector thread failed: deque() got an unexpected keyword argument 'maxsize'
+2025-06-29 11:26:25,882 [INFO] Thread-5 (process_request_thread): 127.0.0.1 - - [29/Jun/2025 11:26:25] "OPTIONS /api/status HTTP/1.1" 200 -
+2025-06-29 11:26:25,950 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:26:25,999 [INFO] Thread-6 (process_request_thread): 127.0.0.1 - - [29/Jun/2025 11:26:25] "GET /api/status HTTP/1.1" 200 -
+2025-06-29 11:26:26,058 [INFO] Thread-7 (process_request_thread): Client connected: 7bQ6aEq4W4dlvptYAAAB
+2025-06-29 11:26:27,591 [INFO] ArduinoComm: Successfully connected to Arduino on COM3
+2025-06-29 11:26:31,448 [INFO] Thread-12 (process_request_thread): 127.0.0.1 - - [29/Jun/2025 11:26:31] "OPTIONS /api/status HTTP/1.1" 200 -
+2025-06-29 11:26:31,646 [WARNING] Thread-2 (_monitoring_loop): Performance issue detected: high_cpu = 91.1
+2025-06-29 11:26:31,766 [INFO] Thread-13 (process_request_thread): 127.0.0.1 - - [29/Jun/2025 11:26:31] "OPTIONS /api/status HTTP/1.1" 200 -
+2025-06-29 11:26:32,107 [CRITICAL] Thread-3 (_timer_loop): Watchdog timeout detected!
+2025-06-29 11:26:32,763 [INFO] Thread-14 (process_request_thread): 127.0.0.1 - - [29/Jun/2025 11:26:32] "OPTIONS /api/status HTTP/1.1" 200 -
+2025-06-29 11:26:33,763 [INFO] Thread-15 (process_request_thread): 127.0.0.1 - - [29/Jun/2025 11:26:33] "OPTIONS /api/status HTTP/1.1" 200 -
+2025-06-29 11:27:26,067 [ERROR] Thread-8 (_service_task): WebSocket error: handle_disconnect() takes 0 positional arguments but 1 was given
+2025-06-29 11:27:37,050 [INFO] Thread-16 (process_request_thread): Client connected: bg61SJ9mcoFZg73YAAAD
+2025-06-29 11:27:37,872 [INFO] Thread-20 (process_request_thread): 127.0.0.1 - - [29/Jun/2025 11:27:37] "OPTIONS /api/status HTTP/1.1" 200 -
+2025-06-29 11:30:39,797 [INFO] MainThread: Safety Monitor initialized
+2025-06-29 11:30:39,803 [INFO] MainThread: Main processing module imported successfully
+2025-06-29 11:30:39,850 [INFO] MainThread: Starting enhanced processing system...
+2025-06-29 11:30:39,853 [INFO] MainThread: Memory monitoring started
+2025-06-29 11:30:39,855 [INFO] MainThread: AsyncProcessor started with 4 workers
+2025-06-29 11:30:39,856 [INFO] MainThread: Watchdog timer started with 1.0s timeout
+2025-06-29 11:30:39,856 [INFO] MainThread: Safety monitoring started
+2025-06-29 11:30:39,857 [INFO] MainThread: Started thread: CameraStream
+2025-06-29 11:30:39,866 [INFO] MainThread: Started thread: LiDARProcessor
+2025-06-29 11:30:39,871 [ERROR] LiDARProcessor: LiDAR processor thread failed: deque() got an unexpected keyword argument 'maxsize'
+2025-06-29 11:30:39,877 [ERROR] CameraStream: Camera stream thread failed: deque() got an unexpected keyword argument 'maxsize'
+2025-06-29 11:30:39,877 [INFO] MainThread: Started thread: YOLOProcessor
+2025-06-29 11:30:39,881 [INFO] MainThread: Started thread: LaneDetector
+2025-06-29 11:30:39,888 [WARNING] LaneDetector: Lane model not found at models/serit.pt
+2025-06-29 11:30:39,888 [WARNING] YOLOProcessor: YOLOv8 model not found at models/tabela.pt. Please download it. Attempting to download yolov8n.pt...
+2025-06-29 11:30:39,889 [INFO] MainThread: Started thread: DepthAnalyzer
+2025-06-29 11:30:39,889 [INFO] MainThread: Started thread: RoadProcessor
+2025-06-29 11:30:39,890 [INFO] MainThread: Started thread: DirectionController
+2025-06-29 11:30:39,890 [INFO] MainThread: Started thread: ArduinoComm
+2025-06-29 11:30:39,891 [INFO] MainThread: All processing threads started successfully
+2025-06-29 11:30:39,891 [INFO] MainThread: Processing threads started
+2025-06-29 11:30:39,896 [INFO] RoadProcessor: RoadProcessor initialized. Default speed: 30 km/h
+2025-06-29 11:30:39,901 [INFO] DirectionController: DirectionController initialized.
+2025-06-29 11:30:39,902 [INFO] MainThread: Flask app starting...
+2025-06-29 11:30:39,907 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:30:39,930 [INFO] MainThread: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.240.230:5000
+2025-06-29 11:30:39,930 [INFO] MainThread: [33mPress CTRL+C to quit[0m
+2025-06-29 11:30:39,960 [INFO] Thread-2 (_monitoring_loop): Safety state changed: SAFE -> CRITICAL
+2025-06-29 11:30:39,960 [INFO] Thread-2 (_monitoring_loop): Triggering graceful degradation
+2025-06-29 11:30:40,009 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:30:40,109 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:30:40,210 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:30:40,310 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:30:40,411 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:30:40,511 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:30:40,612 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:30:40,712 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:30:40,812 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:30:40,913 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:30:41,909 [INFO] ArduinoComm: Successfully connected to Arduino on COM3
+2025-06-29 11:30:47,220 [WARNING] Thread-2 (_monitoring_loop): Performance issue detected: high_cpu = 98.0
+2025-06-29 11:30:47,632 [CRITICAL] Thread-3 (_timer_loop): Watchdog timeout detected!
+2025-06-29 11:30:48,029 [INFO] Thread-5 (process_request_thread): Client connected: PJh4bVWySLJZz-VhAAAB
+2025-06-29 11:30:48,250 [INFO] Thread-10 (process_request_thread): 127.0.0.1 - - [29/Jun/2025 11:30:48] "OPTIONS /api/status HTTP/1.1" 200 -
+2025-06-29 11:30:48,265 [INFO] Thread-11 (process_request_thread): 127.0.0.1 - - [29/Jun/2025 11:30:48] "OPTIONS /api/status HTTP/1.1" 200 -
+2025-06-29 11:30:48,498 [INFO] Thread-12 (process_request_thread): 127.0.0.1 - - [29/Jun/2025 11:30:48] "OPTIONS /api/status HTTP/1.1" 200 -
+2025-06-29 11:30:48,969 [INFO] Thread-13 (process_request_thread): 127.0.0.1 - - [29/Jun/2025 11:30:48] "OPTIONS /api/status HTTP/1.1" 200 -
+2025-06-29 11:30:49,786 [INFO] Thread-14 (process_request_thread): 127.0.0.1 - - [29/Jun/2025 11:30:49] "OPTIONS /api/status HTTP/1.1" 200 -
+2025-06-29 11:30:50,277 [INFO] Thread-15 (process_request_thread): 127.0.0.1 - - [29/Jun/2025 11:30:50] "OPTIONS /api/status HTTP/1.1" 200 -
+2025-06-29 11:34:34,516 [INFO] MainThread: Safety Monitor initialized
+2025-06-29 11:34:34,522 [INFO] MainThread: Main processing module imported successfully
+2025-06-29 11:34:34,578 [INFO] MainThread: Starting enhanced processing system...
+2025-06-29 11:34:34,582 [INFO] MainThread: Memory monitoring started
+2025-06-29 11:34:34,583 [INFO] MainThread: AsyncProcessor started with 4 workers
+2025-06-29 11:34:34,584 [INFO] MainThread: Watchdog timer started with 1.0s timeout
+2025-06-29 11:34:34,584 [INFO] MainThread: Safety monitoring started
+2025-06-29 11:34:34,585 [INFO] MainThread: Started thread: CameraStream
+2025-06-29 11:34:34,595 [INFO] MainThread: Started thread: LiDARProcessor
+2025-06-29 11:34:34,602 [INFO] MainThread: Started thread: YOLOProcessor
+2025-06-29 11:34:34,602 [ERROR] LiDARProcessor: LiDAR processor thread failed: deque() got an unexpected keyword argument 'maxsize'
+2025-06-29 11:34:34,611 [ERROR] CameraStream: Camera stream thread failed: deque() got an unexpected keyword argument 'maxsize'
+2025-06-29 11:34:34,616 [INFO] MainThread: Started thread: LaneDetector
+2025-06-29 11:34:34,623 [INFO] MainThread: Started thread: DepthAnalyzer
+2025-06-29 11:34:34,623 [WARNING] LaneDetector: Lane model not found at models/serit.pt
+2025-06-29 11:34:34,623 [WARNING] YOLOProcessor: YOLOv8 model not found at models/tabela.pt. Please download it. Attempting to download yolov8n.pt...
+2025-06-29 11:34:34,624 [INFO] MainThread: Started thread: RoadProcessor
+2025-06-29 11:34:34,630 [INFO] RoadProcessor: RoadProcessor initialized. Default speed: 30 km/h
+2025-06-29 11:34:34,631 [INFO] MainThread: Started thread: DirectionController
+2025-06-29 11:34:34,632 [INFO] MainThread: Started thread: ArduinoComm
+2025-06-29 11:34:34,632 [INFO] MainThread: All processing threads started successfully
+2025-06-29 11:34:34,637 [INFO] DirectionController: DirectionController initialized.
+2025-06-29 11:34:34,637 [INFO] MainThread: Processing threads started
+2025-06-29 11:34:34,637 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:34:34,643 [INFO] MainThread: Flask app starting...
+2025-06-29 11:34:34,667 [INFO] MainThread: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.240.230:5000
+2025-06-29 11:34:34,667 [INFO] MainThread: [33mPress CTRL+C to quit[0m
+2025-06-29 11:34:34,688 [INFO] Thread-2 (_monitoring_loop): Safety state changed: SAFE -> CRITICAL
+2025-06-29 11:34:34,688 [INFO] Thread-2 (_monitoring_loop): Triggering graceful degradation
+2025-06-29 11:34:34,744 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:34:34,845 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:34:34,945 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:34:35,046 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:34:35,152 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:34:35,253 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:34:35,354 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:34:35,454 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:34:35,554 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:34:35,655 [INFO] DirectionController: DirectionController: Steering: 0 deg, Speed: 30 km/h, Status: Düz
+2025-06-29 11:34:36,647 [INFO] ArduinoComm: Successfully connected to Arduino on COM3
+2025-06-29 11:34:43,791 [WARNING] Thread-2 (_monitoring_loop): Performance issue detected: high_cpu = 94.6
+2025-06-29 11:34:44,259 [CRITICAL] Thread-3 (_timer_loop): Watchdog timeout detected!
+2025-06-29 11:34:46,709 [INFO] Thread-5 (process_request_thread): Client connected: 3zdJlwpJshDiMKEUAAAB
+2025-06-29 11:34:46,794 [INFO] Thread-10 (process_request_thread): 127.0.0.1 - - [29/Jun/2025 11:34:46] "OPTIONS /api/status HTTP/1.1" 200 -
+2025-06-29 11:34:46,863 [INFO] Thread-11 (process_request_thread): 127.0.0.1 - - [29/Jun/2025 11:34:46] "OPTIONS /api/status HTTP/1.1" 200 -
+2025-06-29 11:34:47,460 [INFO] Thread-12 (process_request_thread): 127.0.0.1 - - [29/Jun/2025 11:34:47] "OPTIONS /api/status HTTP/1.1" 200 -
+2025-06-29 11:34:48,768 [INFO] Thread-13 (process_request_thread): 127.0.0.1 - - [29/Jun/2025 11:34:48] "OPTIONS /api/status HTTP/1.1" 200 -
+2025-06-29 11:34:49,334 [INFO] Thread-14 (process_request_thread): 127.0.0.1 - - [29/Jun/2025 11:34:49] "OPTIONS /api/status HTTP/1.1" 200 -
+2025-06-29 11:34:49,337 [INFO] Thread-15 (process_request_thread): 127.0.0.1 - - [29/Jun/2025 11:34:49] "OPTIONS /api/status HTTP/1.1" 200 -
