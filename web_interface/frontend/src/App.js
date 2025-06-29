@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import './index.css';
 import { apiService } from './api';
 import VideoStream from './components/VideoStream';
+import EnhancedVideoStream from './components/EnhancedVideoStream';
+import ProcessingVisualization from './components/ProcessingVisualization';
 import RealTimeDashboard from './components/RealTimeDashboard';
 import LidarVisualization from './components/LidarVisualization';
 import { subscribeLogUpdate, unsubscribeLogUpdate } from './services/socket';
@@ -142,134 +144,31 @@ function App() {
       case 'raw':
         return (
           <div className="camera-feed">
-            <VideoStream />
+            <EnhancedVideoStream 
+              showOverlays={false}
+              className="raw-camera-stream"
+            />
           </div>
         );
       
       case 'strip':
         return (
           <div className="camera-feed">
-            <div className="feed-placeholder">
-              <h3>Lane Detection Results</h3>
-              <p>Enhanced lane detection with temporal consistency</p>
-              <VideoStream />
-              <div className="overlay-info">
-                <div className="info-item">
-                  <span>Detection Quality:</span>
-                  <span className="value">
-                    {systemStatus?.lane_results?.detection_quality ? 
-                      `${(systemStatus.lane_results.detection_quality * 100).toFixed(0)}%` : 
-                      'N/A'
-                    }
-                  </span>
-                </div>
-                <div className="info-item">
-                  <span>Lane Departure:</span>
-                  <span className={`value ${systemStatus?.lane_results?.lane_departure_warning ? 'warning' : ''}`}>
-                    {systemStatus?.lane_results?.lane_departure_warning ? 'Warning' : 'Normal'}
-                  </span>
-                </div>
-                <div className="info-item">
-                  <span>Road Curvature:</span>
-                  <span className="value">
-                    {systemStatus?.lane_results?.road_curvature?.toFixed(3) || '0.000'} rad/m
-                  </span>
-                </div>
-              </div>
-            </div>
+            <ProcessingVisualization processingType="lanes" />
           </div>
         );
       
       case 'mark':
         return (
           <div className="camera-feed">
-            <div className="feed-placeholder">
-              <h3>Object Detection Results</h3>
-              <p>YOLO v8 traffic sign and vehicle detection</p>
-              <VideoStream />
-              <div className="overlay-info">
-                <div className="info-item">
-                  <span>Objects Detected:</span>
-                  <span className="value">
-                    {systemStatus?.detection_results?.traffic_signs?.length || 0}
-                  </span>
-                </div>
-                <div className="info-item">
-                  <span>Processing Time:</span>
-                  <span className="value">{telemetry.processing_time || 0}ms</span>
-                </div>
-                <div className="info-item">
-                  <span>Confidence:</span>
-                  <span className="value">
-                    {systemStatus?.detection_results?.traffic_signs?.[0]?.confidence ? 
-                      `${(systemStatus.detection_results.traffic_signs[0].confidence * 100).toFixed(0)}%` : 
-                      'N/A'
-                    }
-                  </span>
-                </div>
-              </div>
-            </div>
+            <ProcessingVisualization processingType="objects" />
           </div>
         );
       
       case 'depth':
         return (
           <div className="camera-feed">
-            <div className="feed-placeholder">
-              <h3>Depth Analysis Results</h3>
-              <p>3D obstacle detection and spatial mapping</p>
-              <div className="depth-visualization">
-                <div className="depth-info">
-                  <h4>Depth Map Status</h4>
-                  <div className="status-grid">
-                    <div className="status-item">
-                      <span>Camera Type:</span>
-                      <span className={`status-indicator ${systemStatus?.camera_status?.is_connected ? 'connected' : 'disconnected'}`}>
-                        {systemStatus?.camera_status?.camera_type || 'None'}
-                      </span>
-                    </div>
-                    <div className="status-item">
-                      <span>Depth Available:</span>
-                      <span className="value">
-                        {systemStatus?.camera_status?.has_depth ? 'Yes' : 'No'}
-                      </span>
-                    </div>
-                    <div className="status-item">
-                      <span>Processing Quality:</span>
-                      <span className="value">
-                        {systemStatus?.obstacle_results?.processing_quality ? 
-                          `${(systemStatus.obstacle_results.processing_quality * 100).toFixed(0)}%` : 
-                          'N/A'
-                        }
-                      </span>
-                    </div>
-                    <div className="status-item">
-                      <span>Obstacles:</span>
-                      <span className="value">
-                        {systemStatus?.obstacle_results?.obstacle_count || 0} detected
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="depth-map-placeholder">
-                  <p>3D Point Cloud Visualization</p>
-                  <div className="point-cloud-viz">
-                    <div className="viz-grid">
-                      {Array.from({ length: 100 }, (_, i) => (
-                        <div 
-                          key={i} 
-                          className="viz-point" 
-                          style={{
-                            opacity: Math.random(),
-                            backgroundColor: `hsl(${Math.random() * 60 + 200}, 70%, 50%)`
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <ProcessingVisualization processingType="obstacles" />
           </div>
         );
       
@@ -279,32 +178,7 @@ function App() {
       case 'combined':
         return (
           <div className="camera-feed">
-            <div className="combined-overlay">
-              <div className="overlay-container">
-                <VideoStream />
-                <div className="overlay-layer lane-overlay">
-                  <h4>Lane Detection</h4>
-                  <div className="visualization-content">
-                    <svg className="overlay-svg" viewBox="0 0 640 480">
-                      <path d="M 100 480 Q 150 300 200 100" stroke="#bb86fc" strokeWidth="3" fill="none" />
-                      <path d="M 440 480 Q 490 300 540 100" stroke="#bb86fc" strokeWidth="3" fill="none" />
-                      <path d="M 320 480 L 370 100" stroke="#4CAF50" strokeWidth="2" fill="none" strokeDasharray="10,5" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="overlay-layer object-overlay">
-                  <h4>Object Detection</h4>
-                  <div className="visualization-content">
-                    <svg className="overlay-svg" viewBox="0 0 640 480">
-                      <rect x="300" y="200" width="80" height="60" stroke="#4CAF50" strokeWidth="2" fill="none" />
-                      <text x="305" y="195" fill="#4CAF50" fontSize="12">Stop Sign (95%)</text>
-                      <rect x="450" y="300" width="100" height="80" stroke="#FF9800" strokeWidth="2" fill="none" />
-                      <text x="455" y="295" fill="#FF9800" fontSize="12">Vehicle (87%)</text>
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <ProcessingVisualization processingType="combined" />
           </div>
         );
       
@@ -431,7 +305,7 @@ function App() {
             </div>
             
             <div className="telemetry-section">
-              <h4>Navigation</h4>
+              <h4>Navigation & IMU</h4>
               <div className="data-row">
                 Speed: 
                 <span>{systemStatus?.direction_data?.target_speed || 0} km/h</span>
@@ -448,6 +322,18 @@ function App() {
                 IMU Heading: 
                 <span>{systemStatus?.imu_data?.heading_degrees?.toFixed(1) || 'N/A'}°</span>
               </div>
+              {systemStatus?.imu_data && (
+                <>
+                  <div className="data-row">
+                    Vehicle Speed: 
+                    <span>{systemStatus.imu_data.speed_kmh?.toFixed(1) || 'N/A'} km/h</span>
+                  </div>
+                  <div className="data-row">
+                    Motion Confidence: 
+                    <span>{(systemStatus.imu_data.motion_confidence * 100)?.toFixed(0) || 'N/A'}%</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}

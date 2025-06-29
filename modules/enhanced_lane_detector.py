@@ -203,7 +203,8 @@ class EnhancedLaneDetector:
     def _detect_raw_lanes(self, frame: np.ndarray) -> List[Lane]:
         """Ham şerit algılama"""
         if self.model is None:
-            return []
+            # Fallback to traditional lane detection
+            return self._traditional_lane_detection(frame)
         
         try:
             # YOLO inference
@@ -242,7 +243,85 @@ class EnhancedLaneDetector:
             
         except Exception as e:
             logger.error(f"Raw lane detection failed: {e}")
+            return self._traditional_lane_detection(frame)
+    
+    def _traditional_lane_detection(self, frame: np.ndarray) -> List[Lane]:
+        """Geleneksel şerit algılama (fallback)"""
+        try:
+            # Convert to grayscale
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            
+            # Apply Gaussian blur
+            blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+            
+            # Edge detection
+            edges = cv2.Canny(blurred, 50, 150)
+            
+            # Hough line detection
+            lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=50, 
+                                   minLineLength=50, maxLineGap=10)
+            
+            lanes = []
+            if lines is not None:
+                # Group lines into left and right lanes
+                left_lines = []
+                right_lines = []
+                
+                for line in lines:
+                    x1, y1, x2, y2 = line[0]
+                    slope = (y2 - y1) / (x2 - x1) if x2 != x1 else 0
+                    
+                    if slope < -0.5:  # Left lane
+                        left_lines.append(line[0])
+                    elif slope > 0.5:  # Right lane
+                        right_lines.append(line[0])
+                
+                # Create lane objects
+                if left_lines:
+                    left_lane = self._create_lane_from_lines(left_lines, 'left', frame.shape)
+                    if left_lane:
+                        lanes.append(left_lane)
+                
+                if right_lines:
+                    right_lane = self._create_lane_from_lines(right_lines, 'right', frame.shape)
+                    if right_lane:
+                        lanes.append(right_lane)
+            
+            return lanes
+            
+        except Exception as e:
+            logger.error(f"Traditional lane detection failed: {e}")
             return []
+    
+    def _create_lane_from_lines(self, lines: List, lane_type: str, frame_shape: Tuple[int, int]) -> Optional[Lane]:
+        """Çizgilerden şerit oluştur"""
+        if not lines:
+            return None
+        
+        try:
+            # Extract all points
+            points = []
+            for line in lines:
+                x1, y1, x2, y2 = line
+                points.extend([(x1, y1), (x2, y2)])
+            
+            # Convert to LanePoint objects
+            lane_points = [
+                LanePoint(x=float(x), y=float(y), confidence=0.8)
+                for x, y in points
+            ]
+            
+            return Lane(
+                points=lane_points,
+                polynomial_coeffs=None,
+                lane_type=lane_type,
+                confidence=0.8,
+                curvature=0.0
+            )
+            
+        except Exception as e:
+            logger.error(f"Failed to create lane from lines: {e}")
+            return None
     
     def _extract_lane_points(self, mask: np.ndarray) -> List[LanePoint]:
         """Maskeden şerit noktalarını çıkar"""
