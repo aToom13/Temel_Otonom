@@ -6,6 +6,7 @@ import EnhancedVideoStream from './components/EnhancedVideoStream';
 import ProcessingVisualization from './components/ProcessingVisualization';
 import RealTimeDashboard from './components/RealTimeDashboard';
 import LidarVisualization from './components/LidarVisualization';
+import BirdEyeSimulation from './components/BirdEyeSimulation';
 import { subscribeLogUpdate, unsubscribeLogUpdate } from './services/socket';
 
 function App() {
@@ -87,6 +88,7 @@ function App() {
 
   const tabs = [
     { id: 'dashboard', label: 'Real-Time Dashboard' },
+    { id: 'simulation', label: '3D Bird Eye Simulation' },
     { id: 'raw', label: 'Raw Camera' },
     { id: 'strip', label: 'Lane Detection' },
     { id: 'mark', label: 'Object Detection' },
@@ -140,6 +142,9 @@ function App() {
             </div>
           </div>
         );
+      
+      case 'simulation':
+        return <BirdEyeSimulation />;
       
       case 'raw':
         return (
@@ -235,7 +240,7 @@ function App() {
           </div>
         </div>
 
-        {activeTab !== 'dashboard' && activeTab !== 'lidar' && (
+        {activeTab !== 'dashboard' && activeTab !== 'lidar' && activeTab !== 'simulation' && (
           <div className="right-panel">
             <h3>System Status</h3>
             <div className="telemetry-section">
@@ -339,7 +344,7 @@ function App() {
         )}
       </div>
 
-      {activeTab !== 'dashboard' && activeTab !== 'lidar' && (
+      {activeTab !== 'dashboard' && activeTab !== 'lidar' && activeTab !== 'simulation' && (
         <div className="bottom-panel">
           <h3>System Logs</h3>
           <div className="log-output">
