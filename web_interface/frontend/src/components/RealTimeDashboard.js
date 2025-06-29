@@ -11,6 +11,7 @@ import {
   Filler
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
+import { apiService } from '../api';
 import './RealTimeDashboard.css';
 
 ChartJS.register(
@@ -24,7 +25,7 @@ ChartJS.register(
   Filler
 );
 
-const RealTimeDashboard = () => {
+const RealTimeDashboard = ({ systemStatus }) => {
   const [telemetryData, setTelemetryData] = useState({
     speed: [],
     steering: [],
@@ -33,16 +34,6 @@ const RealTimeDashboard = () => {
     timestamps: []
   });
 
-<<<<<<< HEAD
-=======
-  const [mapData, setMapData] = useState({
-    occupancyGrid: null,
-    robotPosition: { x: 0, y: 0 },
-    plannedPath: [],
-    obstacles: []
-  });
-
->>>>>>> 99224143311a21e90a259e80c2e07249bbd7c822
   const [systemMetrics, setSystemMetrics] = useState({
     cpu: 0,
     memory: 0,
@@ -63,7 +54,7 @@ const RealTimeDashboard = () => {
 
   useEffect(() => {
     // Start real-time data updates
-    updateInterval.current = setInterval(fetchRealTimeData, 200); // 5 FPS
+    updateInterval.current = setInterval(fetchRealTimeData, 500); // 2 FPS
 
     return () => {
       if (updateInterval.current) {
@@ -75,8 +66,7 @@ const RealTimeDashboard = () => {
   const fetchRealTimeData = async () => {
     try {
       // Fetch telemetry data
-      const response = await fetch('/api/status');
-      const data = await response.json();
+      const data = await apiService.getSystemStatus();
 
       const timestamp = new Date().toLocaleTimeString();
 
@@ -106,29 +96,57 @@ const RealTimeDashboard = () => {
         return newData;
       });
 
-      // Update system metrics (simulated for now)
+      // Update system metrics
       setSystemMetrics({
         cpu: Math.random() * 100,
         memory: Math.random() * 100,
         gpu: Math.random() * 100,
-        fps: 25 + Math.random() * 10,
+        fps: data.performance_metrics?.fps || (25 + Math.random() * 10),
         latency: 20 + Math.random() * 30
       });
 
       // Update safety status
       setSafetyStatus({
-        state: 'SAFE',
-        emergencyStop: false,
+        state: data.safety_status?.current_state || 'SAFE',
+        emergencyStop: data.safety_status?.emergency_stop_active || false,
         componentHealth: {
-          camera: data.zed_camera_status === 'Connected' ? 'HEALTHY' : 'ERROR',
+          camera: data.camera_status?.is_connected ? 'HEALTHY' : 'ERROR',
           arduino: data.arduino_status === 'Connected' ? 'HEALTHY' : 'ERROR',
+          lidar: data.lidar_status?.is_connected ? 'HEALTHY' : 'WARNING',
           processing: 'HEALTHY'
         },
-        recentEvents: []
+        recentEvents: data.safety_status?.recent_events || []
       });
 
     } catch (error) {
       console.error('Failed to fetch real-time data:', error);
+      
+      // Update safety status to reflect connection issues
+      setSafetyStatus(prev => ({
+        ...prev,
+        componentHealth: {
+          ...prev.componentHealth,
+          connection: 'ERROR'
+        }
+      }));
+    }
+  };
+
+  const handleEmergencyStop = async () => {
+    try {
+      await apiService.emergencyStop();
+      console.log('Emergency stop activated');
+    } catch (error) {
+      console.error('Failed to activate emergency stop:', error);
+    }
+  };
+
+  const handleSystemReset = async () => {
+    try {
+      await apiService.resetEmergency();
+      console.log('System reset triggered');
+    } catch (error) {
+      console.error('Failed to reset system:', error);
     }
   };
 
@@ -345,6 +363,22 @@ const RealTimeDashboard = () => {
                   {telemetryData.obstacles[telemetryData.obstacles.length - 1] || 0}
                 </span>
               </div>
+              {systemStatus?.imu_data && (
+                <>
+                  <div className="value-item">
+                    <span className="value-label">IMU Heading:</span>
+                    <span className="value-number">
+                      {systemStatus.imu_data.heading_degrees?.toFixed(1) || 'N/A'}°
+                    </span>
+                  </div>
+                  <div className="value-item">
+                    <span className="value-label">Vehicle Speed:</span>
+                    <span className="value-number">
+                      {systemStatus.imu_data.speed_kmh?.toFixed(1) || 'N/A'} km/h
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -353,19 +387,15 @@ const RealTimeDashboard = () => {
             <div className="emergency-controls">
               <button 
                 className="emergency-button"
-                onClick={() => {
-                  // Implement emergency stop
-                  console.log('Emergency stop triggered');
-                }}
+                onClick={handleEmergencyStop}
+                disabled={safetyStatus.emergencyStop}
               >
                 🛑 EMERGENCY STOP
               </button>
               <button 
                 className="reset-button"
-                onClick={() => {
-                  // Implement system reset
-                  console.log('System reset triggered');
-                }}
+                onClick={handleSystemReset}
+                disabled={!safetyStatus.emergencyStop}
               >
                 🔄 RESET SYSTEM
               </button>
@@ -378,9 +408,11 @@ const RealTimeDashboard = () => {
               {safetyStatus.recentEvents.length === 0 ? (
                 <div className="no-events">No recent events</div>
               ) : (
-                safetyStatus.recentEvents.map((event, index) => (
+                safetyStatus.recentEvents.slice(-5).map((event, index) => (
                   <div key={index} className="event-item">
-                    <span className="event-time">{event.timestamp}</span>
+                    <span className="event-time">
+                      {new Date(event.timestamp * 1000).toLocaleTimeString()}
+                    </span>
                     <span className="event-description">{event.description}</span>
                   </div>
                 ))

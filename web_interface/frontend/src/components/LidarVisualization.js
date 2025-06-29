@@ -1,31 +1,35 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { apiService } from '../api';
 import './LidarVisualization.css';
 
 const LidarVisualization = () => {
   const [lidarData, setLidarData] = useState(null);
   const [lidarStatus, setLidarStatus] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   const canvasRef = useRef(null);
 
   useEffect(() => {
     // Fetch LiDAR data periodically
     const fetchLidarData = async () => {
       try {
+        setError(null);
+        
         const [dataResponse, statusResponse] = await Promise.all([
-          fetch('/api/lidar/data'),
-          fetch('/api/lidar/status')
+          apiService.getLidarData().catch(() => null),
+          apiService.getLidarStatus().catch(() => null)
         ]);
 
-        if (dataResponse.ok) {
-          const data = await dataResponse.json();
-          setLidarData(data);
+        if (dataResponse) {
+          setLidarData(dataResponse);
         }
 
-        if (statusResponse.ok) {
-          const status = await statusResponse.json();
-          setLidarStatus(status);
+        if (statusResponse) {
+          setLidarStatus(statusResponse);
         }
       } catch (error) {
         console.error('Failed to fetch LiDAR data:', error);
+        setError('Failed to connect to LiDAR service');
       }
     };
 
@@ -33,7 +37,7 @@ const LidarVisualization = () => {
     fetchLidarData();
 
     // Set up periodic updates
-    const interval = setInterval(fetchLidarData, 100); // 10 Hz
+    const interval = setInterval(fetchLidarData, 200); // 5 Hz
 
     return () => clearInterval(interval);
   }, []);
@@ -57,20 +61,28 @@ const LidarVisualization = () => {
     drawGrid(ctx, centerX, centerY, scale);
 
     // Draw safety zones
-    drawSafetyZones(ctx, centerX, centerY, scale, lidarData.safety_zones);
+    if (lidarData.safety_zones) {
+      drawSafetyZones(ctx, centerX, centerY, scale, lidarData.safety_zones);
+    }
 
     // Draw LiDAR points
-    drawLidarPoints(ctx, centerX, centerY, scale, lidarData.points);
+    if (lidarData.points && lidarData.points.length > 0) {
+      drawLidarPoints(ctx, centerX, centerY, scale, lidarData.points);
+    }
 
     // Draw obstacles
-    drawObstacles(ctx, centerX, centerY, scale, lidarData.obstacles);
+    if (lidarData.obstacles && lidarData.obstacles.length > 0) {
+      drawObstacles(ctx, centerX, centerY, scale, lidarData.obstacles);
+    }
 
     // Draw robot/vehicle
     drawVehicle(ctx, centerX, centerY);
 
     // Draw scan line (rotating indicator)
-    drawScanLine(ctx, centerX, centerY, scale);
-  }, [lidarData]);
+    if (lidarStatus?.is_scanning) {
+      drawScanLine(ctx, centerX, centerY, scale);
+    }
+  }, [lidarData, lidarStatus]);
 
   useEffect(() => {
     if (lidarData && canvasRef.current) {
@@ -111,8 +123,6 @@ const LidarVisualization = () => {
   };
 
   const drawSafetyZones = (ctx, centerX, centerY, scale, safetyZones) => {
-    if (!safetyZones) return;
-
     const zones = [
       { name: 'caution', radius: safetyZones.caution, color: 'rgba(255, 255, 0, 0.1)' },
       { name: 'warning', radius: safetyZones.warning, color: 'rgba(255, 165, 0, 0.2)' },
@@ -128,14 +138,12 @@ const LidarVisualization = () => {
   };
 
   const drawLidarPoints = (ctx, centerX, centerY, scale, points) => {
-    if (!points || points.length === 0) return;
-
     points.forEach(point => {
       const x = centerX + point.x * scale;
       const y = centerY - point.y * scale; // Flip Y axis
 
       // Color based on distance and quality
-      const intensity = Math.min(255, point.quality);
+      const intensity = Math.min(255, point.quality || 200);
       const distance = point.distance;
       
       let color;
@@ -155,8 +163,6 @@ const LidarVisualization = () => {
   };
 
   const drawObstacles = (ctx, centerX, centerY, scale, obstacles) => {
-    if (!obstacles || obstacles.length === 0) return;
-
     obstacles.forEach(obstacle => {
       const x = centerX + obstacle.center_x * scale;
       const y = centerY - obstacle.center_y * scale; // Flip Y axis
@@ -221,21 +227,29 @@ const LidarVisualization = () => {
 
   const handleStartLidar = async () => {
     try {
-      const response = await fetch('/api/lidar/start', { method: 'POST' });
-      const result = await response.json();
+      setIsLoading(true);
+      setError(null);
+      const result = await apiService.startLidar();
       console.log('LiDAR start result:', result);
     } catch (error) {
       console.error('Failed to start LiDAR:', error);
+      setError('Failed to start LiDAR');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleStopLidar = async () => {
     try {
-      const response = await fetch('/api/lidar/stop', { method: 'POST' });
-      const result = await response.json();
+      setIsLoading(true);
+      setError(null);
+      const result = await apiService.stopLidar();
       console.log('LiDAR stop result:', result);
     } catch (error) {
       console.error('Failed to stop LiDAR:', error);
+      setError('Failed to stop LiDAR');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -247,19 +261,31 @@ const LidarVisualization = () => {
           <button 
             className="control-button start"
             onClick={handleStartLidar}
-            disabled={lidarStatus?.is_scanning}
+            disabled={lidarStatus?.is_scanning || isLoading}
           >
-            Start Scan
+            {isLoading ? 'Starting...' : 'Start Scan'}
           </button>
           <button 
             className="control-button stop"
             onClick={handleStopLidar}
-            disabled={!lidarStatus?.is_scanning}
+            disabled={!lidarStatus?.is_scanning || isLoading}
           >
-            Stop Scan
+            {isLoading ? 'Stopping...' : 'Stop Scan'}
           </button>
         </div>
       </div>
+
+      {error && (
+        <div className="error-message" style={{
+          background: '#f44336',
+          color: 'white',
+          padding: '10px',
+          margin: '10px',
+          borderRadius: '4px'
+        }}>
+          {error}
+        </div>
+      )}
 
       <div className="lidar-content">
         <div className="lidar-canvas-container">
