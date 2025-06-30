@@ -58,7 +58,7 @@ class RPLidarA1Processor:
         self.is_scanning = False
         
         # Data processing
-        self.scan_history = deque(maxsize=self.config.get('history_size', 10))
+        self.scan_history = deque(maxlen=self.config.get('history_size', 10))
         self.current_scan = None
         
         # Obstacle detection

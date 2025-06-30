@@ -321,6 +321,9 @@ class EnhancedCameraManager:
                 image = sl.Mat()
                 self.zed_camera.retrieve_image(image, sl.VIEW.LEFT)
                 rgb_frame = image.get_data()
+                # Convert BGRA to BGR if needed
+                if rgb_frame.shape[2] == 4:
+                    rgb_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_BGRA2BGR)
                 
                 # Depth map
                 depth = sl.Mat()
@@ -336,27 +339,53 @@ class EnhancedCameraManager:
                 imu_data = sl.SensorsData()
                 if self.zed_camera.get_sensors_data(imu_data, sl.TIME_REFERENCE.IMAGE) == sl.ERROR_CODE.SUCCESS:
                     # Process IMU data
-                    imu_dict = {
-                        'linear_acceleration': {
-                            'x': imu_data.get_imu_data().linear_acceleration[0],
-                            'y': imu_data.get_imu_data().linear_acceleration[1],
-                            'z': imu_data.get_imu_data().linear_acceleration[2]
-                        },
-                        'angular_velocity': {
-                            'x': imu_data.get_imu_data().angular_velocity[0],
-                            'y': imu_data.get_imu_data().angular_velocity[1],
-                            'z': imu_data.get_imu_data().angular_velocity[2]
-                        },
-                        'orientation': {
-                            'x': imu_data.get_imu_data().orientation[0],
-                            'y': imu_data.get_imu_data().orientation[1],
-                            'z': imu_data.get_imu_data().orientation[2],
-                            'w': imu_data.get_imu_data().orientation[3]
+                    imu_raw = imu_data.get_imu_data()
+
+                    def _safe_vec(v):
+                        try:
+                            return (float(v[0]), float(v[1]), float(v[2]))
+                        except Exception:
+                            return (0.0, 0.0, 0.0)
+
+                    # Retrieve linear acceleration
+                    if hasattr(imu_raw, "get_linear_acceleration"):
+                        lin_accel = imu_raw.get_linear_acceleration()
+                    else:
+                        lin_accel = getattr(imu_raw, "linear_acceleration", None)
+
+                    # Retrieve angular velocity
+                    if hasattr(imu_raw, "get_angular_velocity"):
+                        ang_vel = imu_raw.get_angular_velocity()
+                    else:
+                        ang_vel = getattr(imu_raw, "angular_velocity", None)
+
+                    # Retrieve orientation (quaternion)
+                    if hasattr(imu_raw, "get_orientation"):
+                        orientation = imu_raw.get_orientation()
+                    else:
+                        orientation = getattr(imu_raw, "orientation", None)
+
+                    if lin_accel is not None and ang_vel is not None and orientation is not None:
+                        imu_dict = {
+                            'linear_acceleration': {
+                                'x': _safe_vec(lin_accel)[0],
+                                'y': _safe_vec(lin_accel)[1],
+                                'z': _safe_vec(lin_accel)[2]
+                            },
+                            'angular_velocity': {
+                                'x': _safe_vec(ang_vel)[0],
+                                'y': _safe_vec(ang_vel)[1],
+                                'z': _safe_vec(ang_vel)[2]
+                            },
+                            'orientation': {
+                                'x': orientation[0] if len(orientation) >= 4 else 0.0,
+                                'y': orientation[1] if len(orientation) >= 4 else 0.0,
+                                'z': orientation[2] if len(orientation) >= 4 else 0.0,
+                                'w': orientation[3] if len(orientation) >= 4 else 1.0
+                            }
                         }
-                    }
-                    
-                    # Process IMU data
-                    self.imu_processor.process_imu_data(imu_dict)
+                        # Process IMU data if we have everything we need
+                        self.imu_processor.process_imu_data(imu_dict)
                 
                 # Update performance metrics
                 self._update_fps()
