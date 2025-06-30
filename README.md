@@ -91,6 +91,7 @@ Dursun, gelişmiş bilgisayar görüşü teknolojileri kullanarak otonom navigas
 - **Real-time Dashboard**: Chart.js ile canlı grafikler
 - **IMU Telemetri**: Orientation, motion, heading gösterimi
 - **LiDAR Visualization**: Interactive 2D LiDAR görselleştirme
+- **Depth Point Cloud Visualization**: Gerçek zamanlı 3D point cloud derinlik analizi
 - **Camera Status**: ZED/Webcam durumu ve otomatik geçiş
 - **Safety Controls**: Emergency stop ve system reset
 - **Performance Monitoring**: FPS, CPU, memory, latency
@@ -231,6 +232,7 @@ Bu komut otomatik olarak:
 - Enhanced camera manager'ı başlatır (ZED 2i öncelikli)
 - IMU processing'i aktifleştirir
 - LiDAR processor'ı başlatır (RPLIDAR A1)
+- Depth analyzer'ı ve nokta bulutu yayınını başlatır
 - Backend API sunucusunu başlatır (Port 5000)
 - Frontend React uygulamasını başlatır (Port 3000)
 - Tüm işleme thread'lerini başlatır

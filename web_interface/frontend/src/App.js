@@ -7,6 +7,7 @@ import ProcessingVisualization from './components/ProcessingVisualization';
 import RealTimeDashboard from './components/RealTimeDashboard';
 import LidarVisualization from './components/LidarVisualization';
 import BirdEyeSimulation from './components/BirdEyeSimulation';
+import DepthPointCloud from './components/DepthPointCloud';
 import ErrorBoundary from './utils/errorBoundary';
 import { subscribeLogUpdate, unsubscribeLogUpdate } from './services/socket';
 
@@ -198,9 +199,9 @@ function App() {
         
         case 'depth':
           return (
-            <div className="camera-feed">
+            <div className="depth-view">
               <ErrorBoundary>
-                <ProcessingVisualization processingType="obstacles" />
+                <DepthPointCloud />
               </ErrorBoundary>
             </div>
           );
