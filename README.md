@@ -65,14 +65,6 @@ Dursun, gelişmiş bilgisayar görüşü teknolojileri kullanarak otonom navigas
 - **Gravity Compensation**: Doğru linear acceleration
 - **Vehicle Heading**: Araç yönü ve navigasyon desteği
 
-### 📡 LiDAR Entegrasyonu
-- **Slamtec RPLIDAR A1**: 2D laser scanning (12m menzil)
-- **Real-time Obstacle Detection**: 360° çevre algılama
-- **Safety Zone Monitoring**: Çoklu güvenlik bölgesi
-- **Point Cloud Processing**: Noise filtering ve clustering
-- **2D Mapping**: Occupancy grid ve spatial mapping
-- **Interactive Visualization**: Web tabanlı LiDAR görselleştirme
-
 ### 🧠 Yapay Zeka ve Algoritmalar
 - **Temporal Lane Detection**: Çok-frame averaging
 - **Lane Change Detection**: Lateral movement analysis
