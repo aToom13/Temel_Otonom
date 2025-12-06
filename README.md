@@ -36,7 +36,7 @@
 
 ## 🚀 Proje Hakkında
 
-Dursun, gelişmiş bilgisayar görüşü teknolojileri kullanarak otonom navigasyon sağlayan kapsamlı bir platformdur. **ZED 2i stereo kamera + dahili IMU sensörü** ve **Slamtec RPLIDAR A1 2D LiDAR** ile multi-modal sensor fusion, YOLO nesne algılama, gelişmiş şerit takibi ve Arduino tabanlı donanım kontrolü ile gerçek zamanlı otonom sürüş yetenekleri sunar.
+Dursun, gelişmiş bilgisayar görüşü teknolojileri kullanarak otonom navigasyon sağlayan kapsamlı bir platformdur. **ZED 2i stereo kamera + dahili IMU sensörü** ve **Slamtec RPLIDAR A1 2D LiDAR** ile multi-modal sensor fusion, YOLO nesne algılama, gelişmiş şerit takibi ve Arduino donanım kontrolü ile gerçek zamanlı otonom sürüş yetenekleri sunar.
 
 ### 🎯 Temel Hedefler
 
