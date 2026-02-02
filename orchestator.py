@@ -4,6 +4,7 @@ import os
 import time
 import signal
 import logging
+import socket
 
 # Setup logging
 logging.basicConfig(
@@ -13,7 +14,9 @@ logging.basicConfig(
 logger = logging.getLogger('orchestrator')
 
 # Process commands
-BACKEND_CMD = [sys.executable, 'web_interface/app.py']
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+BACKEND_PATH = os.path.join(SCRIPT_DIR, 'web_interface', 'app.py')
+BACKEND_CMD = [sys.executable, BACKEND_PATH]
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), 'web_interface', 'frontend')
 FRONTEND_CMD = ['npm', 'start']
 
@@ -124,10 +127,28 @@ def install_frontend_dependencies():
         logger.info("Frontend dependencies already installed")
         return True
 
+def is_port_in_use(port):
+    """Return True if port is in use."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('127.0.0.1', port)) == 0
+
+
 def start_backend():
     """Start the backend process"""
     global backend_proc
     
+    # Ensure port 5000 is free
+    backend_port = 5000
+    if is_port_in_use(backend_port):
+        logger.warning(f"Port {backend_port} already in use. Attempting to free it...")
+        try:
+            # Try to kill process(es) using the port (linux-specific fuser)
+            subprocess.run(['fuser', '-k', f'{backend_port}/tcp'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+            time.sleep(1)  # Give the OS a moment to release the port
+        except Exception as e:
+            logger.error(f"Failed to free port {backend_port}: {e}")
+            # Continue anyway – backend will fail if still occupied
+
     logger.info("Starting backend (Flask app)...")
     try:
         backend_proc = subprocess.Popen(
@@ -156,6 +177,16 @@ def start_frontend():
     """Start the frontend process"""
     global frontend_proc
     
+    # Ensure port 3000 is free
+    frontend_port = 3000
+    if is_port_in_use(frontend_port):
+        logger.warning(f"Port {frontend_port} already in use. Attempting to free it...")
+        try:
+            subprocess.run(['fuser', '-k', f'{frontend_port}/tcp'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+            time.sleep(1)
+        except Exception as e:
+            logger.error(f"Failed to free port {frontend_port}: {e}")
+
     logger.info("Starting frontend (React app)...")
     try:
         # Use shell=True on Windows for npm commands
@@ -165,8 +196,8 @@ def start_frontend():
             FRONTEND_CMD,
             cwd=FRONTEND_DIR,
             shell=use_shell,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT
         )
         
         # Wait a moment to check if it started successfully

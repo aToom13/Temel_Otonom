@@ -51,7 +51,9 @@ logger = logging.getLogger(__name__)
 camera_manager = None
 lidar_processor = None
 processed_frame = None
+processed_depth = None
 processed_frame_lock = threading.Lock()
+processed_depth_lock = threading.Lock()
 detection_results = {}
 detection_results_lock = threading.Lock()
 lane_results = {}
@@ -295,6 +297,9 @@ def camera_stream_thread():
                 if frame_data:
                     with processed_frame_lock:
                         processed_frame = frame_data.rgb
+                    if frame_data.depth is not None:
+                        with processed_depth_lock:
+                            processed_depth = frame_data.depth
                     
                     # Update IMU data if available
                     if camera_manager.has_imu_capability():

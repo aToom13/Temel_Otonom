@@ -2,6 +2,9 @@ from flask import Blueprint
 from flask_socketio import SocketIO, emit, disconnect
 import main as processing_main
 import threading
+import base64
+import cv2
+import numpy as np
 import time
 import logging
 import json
@@ -147,6 +150,8 @@ def broadcast_system_data():
     last_status_broadcast = 0
     last_imu_broadcast = 0
     last_lidar_broadcast = 0
+    last_video_broadcast = 0
+    last_pointcloud_broadcast = 0
     
     while broadcast_active and len(connected_clients) > 0:
         try:
@@ -161,6 +166,22 @@ def broadcast_system_data():
                 except Exception as e:
                     logger.error(f"Status broadcast error: {e}")
             
+            # Broadcast camera frame every 0.067 s (~15 FPS)
+            if current_time - last_video_broadcast >= 0.067:
+                try:
+                    if (processing_main and hasattr(processing_main, 'processed_frame') and
+                            processing_main.processed_frame is not None):
+                        with processing_main.processed_frame_lock:
+                            frame = processing_main.processed_frame.copy()
+                        # JPEG encode with moderate quality for lower bandwidth
+                        success, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+                        if success:
+                            frame_b64 = base64.b64encode(buffer).decode('utf-8')
+                            socketio.emit('camera_frame', {'frame': frame_b64})
+                            last_video_broadcast = current_time
+                except Exception as e:
+                    logger.debug(f"Video broadcast error: {e}")
+
             # Broadcast IMU data every 0.1 seconds (10 Hz)
             if current_time - last_imu_broadcast >= 0.1:
                 try:
@@ -171,6 +192,37 @@ def broadcast_system_data():
                         last_imu_broadcast = current_time
                 except Exception as e:
                     logger.debug(f"IMU broadcast error: {e}")
+            
+            # Broadcast pointcloud every 0.1 seconds (10 Hz)
+            if current_time - last_pointcloud_broadcast >= 0.1:
+                try:
+                    if (hasattr(processing_main, 'processed_depth') and
+                            processing_main.processed_depth is not None):
+                        with processing_main.processed_depth_lock:
+                            depth_map = processing_main.processed_depth.copy()
+                        h, w = depth_map.shape[:2]
+                        # Intrinsic approximation
+                        fx = fy = 700.0
+                        cx = w / 2.0
+                        cy = h / 2.0
+                        # Flatten depth map and sample indices where depth > 0
+                        flat_depth = depth_map.flatten()
+                        valid_indices = np.where(flat_depth > 0)[0]
+                        if len(valid_indices) > 0:
+                            sample_size = min(2048, len(valid_indices))
+                            sample_idx = np.random.choice(valid_indices, sample_size, replace=False)
+                            points = []
+                            for idx in sample_idx:
+                                z = float(flat_depth[idx])
+                                v = idx // w
+                                u = idx % w
+                                x = (u - cx) * z / fx
+                                y = (v - cy) * z / fy
+                                points.append([x, y, z])
+                            socketio.emit('pointcloud', {'points': points})
+                            last_pointcloud_broadcast = current_time
+                except Exception as e:
+                    logger.debug(f"Pointcloud broadcast error: {e}")
             
             # Broadcast LiDAR data every 0.2 seconds (5 Hz)
             if current_time - last_lidar_broadcast >= 0.2:

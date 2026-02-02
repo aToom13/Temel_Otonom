@@ -11,6 +11,7 @@ import {
   Filler
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
+import { subscribeSystemStatus, unsubscribeSystemStatus } from '../services/socket';
 import { apiService } from '../api';
 import './RealTimeDashboard.css';
 
@@ -26,14 +27,15 @@ ChartJS.register(
 );
 
 const RealTimeDashboard = ({ systemStatus }) => {
+  // Telemetry time-series used for the charts
   const [telemetryData, setTelemetryData] = useState({
     speed: [],
     steering: [],
     obstacles: [],
-    performance: [],
     timestamps: []
   });
 
+  // Instantaneous performance metrics
   const [systemMetrics, setSystemMetrics] = useState({
     cpu: 0,
     memory: 0,
@@ -42,6 +44,7 @@ const RealTimeDashboard = ({ systemStatus }) => {
     latency: 0
   });
 
+  // Aggregated safety / health information
   const [safetyStatus, setSafetyStatus] = useState({
     state: 'SAFE',
     emergencyStop: false,
@@ -49,32 +52,17 @@ const RealTimeDashboard = ({ systemStatus }) => {
     recentEvents: []
   });
 
-  const maxDataPoints = 50;
-  const updateInterval = useRef(null);
+    const maxDataPoints = 50;
 
-  useEffect(() => {
-    // Start real-time data updates
-    updateInterval.current = setInterval(fetchRealTimeData, 500); // 2 FPS
-
-    return () => {
-      if (updateInterval.current) {
-        clearInterval(updateInterval.current);
-      }
-    };
-  }, []);
-
-  const fetchRealTimeData = async () => {
-    try {
-      // Fetch telemetry data
-      const data = await apiService.getSystemStatus();
-
+    useEffect(() => {
+    // Handler called whenever the backend pushes a `system_status` event
+    const handleStatus = (data) => {
       const timestamp = new Date().toLocaleTimeString();
 
-      // Update telemetry data
-      setTelemetryData(prev => {
+      // 1. Update rolling telemetry arrays used for charts
+      setTelemetryData((prev) => {
         const newData = { ...prev };
-        
-        // Add new data points
+
         if (data.direction_data) {
           newData.speed.push(data.direction_data.target_speed || 0);
           newData.steering.push(data.direction_data.steering_angle || 0);
@@ -86,8 +74,8 @@ const RealTimeDashboard = ({ systemStatus }) => {
         newData.obstacles.push(data.obstacle_results?.obstacle_detected ? 1 : 0);
         newData.timestamps.push(timestamp);
 
-        // Limit data points
-        Object.keys(newData).forEach(key => {
+        // Keep only the latest `maxDataPoints` samples
+        Object.keys(newData).forEach((key) => {
           if (newData[key].length > maxDataPoints) {
             newData[key] = newData[key].slice(-maxDataPoints);
           }
@@ -96,16 +84,16 @@ const RealTimeDashboard = ({ systemStatus }) => {
         return newData;
       });
 
-      // Update system metrics
+      // 2. Update instantaneous metrics (placeholder randoms for now)
       setSystemMetrics({
         cpu: Math.random() * 100,
         memory: Math.random() * 100,
         gpu: Math.random() * 100,
-        fps: data.performance_metrics?.fps || (25 + Math.random() * 10),
+        fps: data.performance_metrics?.fps || 30,
         latency: 20 + Math.random() * 30
       });
 
-      // Update safety status
+      // 3. Update safety / component health info
       setSafetyStatus({
         state: data.safety_status?.current_state || 'SAFE',
         emergencyStop: data.safety_status?.emergency_stop_active || false,
@@ -117,20 +105,11 @@ const RealTimeDashboard = ({ systemStatus }) => {
         },
         recentEvents: data.safety_status?.recent_events || []
       });
+    };
 
-    } catch (error) {
-      console.error('Failed to fetch real-time data:', error);
-      
-      // Update safety status to reflect connection issues
-      setSafetyStatus(prev => ({
-        ...prev,
-        componentHealth: {
-          ...prev.componentHealth,
-          connection: 'ERROR'
-        }
-      }));
-    }
-  };
+    subscribeSystemStatus(handleStatus);
+    return () => unsubscribeSystemStatus(handleStatus);
+  }, []);
 
   const handleEmergencyStop = async () => {
     try {

@@ -160,6 +160,15 @@ export function unsubscribeIMUData() {
   socketService.unsubscribe('imu_update');
 }
 
+// Pointcloud helpers
+export function subscribePointcloud(callback) {
+  socketService.subscribe('pointcloud', callback);
+}
+
+export function unsubscribePointcloud() {
+  socketService.unsubscribe('pointcloud');
+}
+
 export function subscribeLidarData(callback) {
   socketService.subscribe('lidar_update', callback);
 }

@@ -34,6 +34,16 @@ class VehicleMotion:
     is_moving: bool
     motion_confidence: float
 
+    # Backward compatibility alias
+    @property
+    def confidence(self) -> float:
+        """Alias for motion_confidence for backward compatibility"""
+        return self.motion_confidence
+
+    @confidence.setter
+    def confidence(self, value: float):
+        self.motion_confidence = value
+
 class IMUProcessor:
     """
     ZED 2i IMU sensör işleme sınıfı.
@@ -47,8 +57,8 @@ class IMUProcessor:
         self.config = self._load_config(config_path)
         
         # IMU data history
-        self.imu_history = deque(maxsize=self.config.get('history_size', 100))
-        self.motion_history = deque(maxsize=50)
+        self.imu_history = deque(maxlen=self.config.get('history_size', 100))
+        self.motion_history = deque(maxlen=50)
         
         # Kalman filter for sensor fusion
         self.kalman_filter = self._init_kalman_filter()
@@ -415,7 +425,7 @@ class IMUProcessor:
             'pitch_degrees': float(np.degrees(motion.orientation[1])),
             'acceleration_magnitude': float(np.linalg.norm(motion.acceleration)),
             'angular_velocity_magnitude': float(np.linalg.norm(motion.angular_velocity)),
-            'motion_confidence': float(motion.confidence),
+            'motion_confidence': float(motion.motion_confidence),
             'is_calibrated': self.is_calibrated,
             'position': motion.position.tolist(),
             'velocity': motion.velocity.tolist(),

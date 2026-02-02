@@ -59,7 +59,7 @@ class EnhancedLaneDetector:
         self.model = self._load_model(model_path)
         
         # Temporal tracking
-        self.lane_history = deque(maxsize=self.config.get('history_size', 10))
+        self.lane_history = deque(maxlen=self.config.get('history_size', 10))
         self.frame_count = 0
         
         # Lane tracking
