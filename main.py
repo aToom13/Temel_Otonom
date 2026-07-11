@@ -1,795 +1,197 @@
-import threading
+import argparse
 import time
 import cv2
-import numpy as np
-import logging
-import os
 import yaml
 
-# Import enhanced modules
-from modules.yolo_processor import YoloProcessor
-from modules.enhanced_lane_detector import EnhancedLaneDetector
-from modules.depth_analizer import DepthAnalyzer
-from modules.road_processor import RoadProcessor
-from modules.direction_controller import DirectionController
-from modules.arduino_cominicator import ArduinoCommunicator
-from modules.enhanced_camera_manager import EnhancedCameraManager
-from modules.lidar_processor import RPLidarA1Processor
+from core import KlasikSeritDedektoru, SeritDedektoru, YOLODedektoru, YOLOSeritDedektoru, PIDSurucu
+from araclar import Gorsellestirici
+from donanim import ArduinoHaberlesme
 
-# Import performance and safety modules
-from core.performance.memory_manager import memory_manager
-from core.performance.async_processor import async_processor, ProcessingTask
-from core.safety.safety_monitor import safety_monitor, SystemComponent, HealthStatus, SafetyState
 
-# Logging ayarları
-config_file = os.path.join(os.path.dirname(__file__), 'config.yaml')
-if os.path.exists(config_file):
-    with open(config_file, 'r', encoding='utf-8') as f:
-        config = yaml.safe_load(f)
-    log_conf = config.get('logging', {})
-    log_level = getattr(logging, log_conf.get('level', 'INFO').upper(), logging.INFO)
-    log_file = log_conf.get('file', 'logs/dursun.log')
-else:
-    log_level = logging.INFO
-    log_file = 'logs/dursun.log'
+def yapilandirma_yukle(yol="config.yaml"):
+    with open(yol, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
 
-# Create logs directory if it doesn't exist
-os.makedirs(os.path.dirname(log_file), exist_ok=True)
-
-# Enhanced logging configuration
-logging.basicConfig(
-    level=log_level,
-    format='%(asctime)s [%(levelname)s] %(threadName)s: %(message)s',
-    handlers=[
-        logging.FileHandler(log_file, encoding='utf-8'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
-
-# Global variables for sharing data between threads
-camera_manager = None
-lidar_processor = None
-processed_frame = None
-processed_frame_lock = threading.Lock()
-detection_results = {}
-detection_results_lock = threading.Lock()
-lane_results = {}
-lane_results_lock = threading.Lock()
-obstacle_results = {}
-obstacle_results_lock = threading.Lock()
-lidar_results = {}
-lidar_results_lock = threading.Lock()
-direction_data = {}
-direction_data_lock = threading.Lock()
-arduino_status = "Disconnected"
-arduino_status_lock = threading.Lock()
-imu_data = {}
-imu_data_lock = threading.Lock()
-
-# Performance metrics
-performance_metrics = {
-    'frame_count': 0,
-    'processing_times': [],
-    'fps': 0.0,
-    'last_fps_update': time.time()
-}
-performance_metrics_lock = threading.Lock()
-
-# System initialization flag
-system_initialized = False
-initialization_lock = threading.Lock()
-
-def update_performance_metrics(processing_time: float):
-    """Performans metriklerini güncelle"""
-    with performance_metrics_lock:
-        performance_metrics['frame_count'] += 1
-        performance_metrics['processing_times'].append(processing_time)
-        
-        # Keep only last 30 processing times
-        if len(performance_metrics['processing_times']) > 30:
-            performance_metrics['processing_times'] = performance_metrics['processing_times'][-30:]
-        
-        # Update FPS every second
-        current_time = time.time()
-        if current_time - performance_metrics['last_fps_update'] >= 1.0:
-            if len(performance_metrics['processing_times']) > 0:
-                performance_metrics['fps'] = len(performance_metrics['processing_times']) / (
-                    current_time - performance_metrics['last_fps_update']
-                )
-            performance_metrics['last_fps_update'] = current_time
-
-def create_camera_health_callback():
-    """Kamera sağlık kontrolü callback'i oluştur"""
-    def check_camera_health():
-        try:
-            if camera_manager:
-                camera_status = camera_manager.get_camera_status()
-                
-                if camera_status.is_connected:
-                    return HealthStatus(
-                        component=SystemComponent.CAMERA,
-                        status=SafetyState.SAFE,
-                        message=f"{camera_status.camera_type} camera operating normally",
-                        timestamp=time.time(),
-                        metrics={
-                            "camera_type": camera_status.camera_type,
-                            "resolution": camera_status.resolution,
-                            "fps": camera_status.fps,
-                            "has_depth": camera_status.has_depth,
-                            "has_imu": camera_status.has_imu
-                        }
-                    )
-                else:
-                    return HealthStatus(
-                        component=SystemComponent.CAMERA,
-                        status=SafetyState.CRITICAL,
-                        message="Camera disconnected",
-                        timestamp=time.time(),
-                        metrics={"camera_type": "None"}
-                    )
-            
-            return HealthStatus(
-                component=SystemComponent.CAMERA,
-                status=SafetyState.CRITICAL,
-                message="Camera manager not initialized",
-                timestamp=time.time(),
-                metrics={}
-            )
-        except Exception as e:
-            logger.error(f"Camera health check failed: {e}")
-            return HealthStatus(
-                component=SystemComponent.CAMERA,
-                status=SafetyState.CRITICAL,
-                message=f"Camera health check error: {e}",
-                timestamp=time.time(),
-                metrics={}
-            )
-    
-    return check_camera_health
-
-def create_arduino_health_callback():
-    """Arduino sağlık kontrolü callback'i oluştur"""
-    def check_arduino_health():
-        try:
-            with arduino_status_lock:
-                status = arduino_status
-            
-            if status == "Connected":
-                return HealthStatus(
-                    component=SystemComponent.ARDUINO,
-                    status=SafetyState.SAFE,
-                    message="Arduino communication normal",
-                    timestamp=time.time(),
-                    metrics={"status": status}
-                )
-            else:
-                return HealthStatus(
-                    component=SystemComponent.ARDUINO,
-                    status=SafetyState.WARNING,
-                    message=f"Arduino issue: {status}",
-                    timestamp=time.time(),
-                    metrics={"status": status}
-                )
-        except Exception as e:
-            logger.error(f"Arduino health check failed: {e}")
-            return HealthStatus(
-                component=SystemComponent.ARDUINO,
-                status=SafetyState.CRITICAL,
-                message=f"Arduino health check error: {e}",
-                timestamp=time.time(),
-                metrics={}
-            )
-    
-    return check_arduino_health
-
-def create_lidar_health_callback():
-    """LiDAR sağlık kontrolü callback'i oluştur"""
-    def check_lidar_health():
-        try:
-            if lidar_processor:
-                lidar_status = lidar_processor.get_status()
-                
-                if lidar_status['is_connected'] and lidar_status['is_scanning']:
-                    return HealthStatus(
-                        component=SystemComponent.PROCESSING,
-                        status=SafetyState.SAFE,
-                        message="LiDAR operating normally",
-                        timestamp=time.time(),
-                        metrics={
-                            "scan_frequency": lidar_status['scan_frequency'],
-                            "obstacle_count": lidar_status['obstacle_count'],
-                            "scan_count": lidar_status['scan_count']
-                        }
-                    )
-                elif lidar_status['is_connected']:
-                    return HealthStatus(
-                        component=SystemComponent.PROCESSING,
-                        status=SafetyState.WARNING,
-                        message="LiDAR connected but not scanning",
-                        timestamp=time.time(),
-                        metrics=lidar_status
-                    )
-                else:
-                    return HealthStatus(
-                        component=SystemComponent.PROCESSING,
-                        status=SafetyState.WARNING,
-                        message="LiDAR not connected",
-                        timestamp=time.time(),
-                        metrics=lidar_status
-                    )
-            
-            return HealthStatus(
-                component=SystemComponent.PROCESSING,
-                status=SafetyState.WARNING,
-                message="LiDAR processor not initialized",
-                timestamp=time.time(),
-                metrics={}
-            )
-        except Exception as e:
-            logger.error(f"LiDAR health check failed: {e}")
-            return HealthStatus(
-                component=SystemComponent.PROCESSING,
-                status=SafetyState.WARNING,
-                message=f"LiDAR health check error: {e}",
-                timestamp=time.time(),
-                metrics={}
-            )
-    
-    return check_lidar_health
-
-def create_processing_health_callback():
-    """İşleme sağlık kontrolü callback'i oluştur"""
-    def check_processing_health():
-        try:
-            with performance_metrics_lock:
-                fps = performance_metrics['fps']
-                avg_processing_time = np.mean(performance_metrics['processing_times']) if performance_metrics['processing_times'] else 0
-            
-            if fps > 15 and avg_processing_time < 0.1:
-                status = SafetyState.SAFE
-                message = "Processing performance good"
-            elif fps > 10 and avg_processing_time < 0.2:
-                status = SafetyState.WARNING
-                message = "Processing performance degraded"
-            else:
-                status = SafetyState.CRITICAL
-                message = "Processing performance critical"
-            
-            return HealthStatus(
-                component=SystemComponent.PROCESSING,
-                status=status,
-                message=message,
-                timestamp=time.time(),
-                metrics={"fps": fps, "avg_processing_time": avg_processing_time}
-            )
-        except Exception as e:
-            logger.error(f"Processing health check failed: {e}")
-            return HealthStatus(
-                component=SystemComponent.PROCESSING,
-                status=SafetyState.CRITICAL,
-                message=f"Processing health check error: {e}",
-                timestamp=time.time(),
-                metrics={}
-            )
-    
-    return check_processing_health
-
-# --- Enhanced Camera Stream ---
-def camera_stream_thread():
-    global camera_manager, processed_frame
-    
-    try:
-        camera_manager = EnhancedCameraManager()
-        
-        if not camera_manager.start():
-            logger.error("Failed to start camera system")
-            return
-        
-        logger.info("Enhanced camera system started")
-        
-        while True:
-            try:
-                frame_data = camera_manager.capture_frame()
-                
-                if frame_data:
-                    with processed_frame_lock:
-                        processed_frame = frame_data.rgb
-                    
-                    # Update IMU data if available
-                    if camera_manager.has_imu_capability():
-                        current_imu_data = camera_manager.get_imu_data()
-                        with imu_data_lock:
-                            imu_data.update(current_imu_data)
-                
-                time.sleep(0.01)  # ~100 FPS max
-                
-            except Exception as e:
-                logger.error(f"Camera stream error: {e}")
-                time.sleep(0.1)
-                
-    except Exception as e:
-        logger.error(f"Camera stream thread failed: {e}")
-
-# --- LiDAR Processing Thread ---
-def lidar_processor_thread():
-    global lidar_processor, lidar_results
-    
-    try:
-        lidar_processor = RPLidarA1Processor()
-        
-        # Try to connect to LiDAR
-        if lidar_processor.connect():
-            logger.info("LiDAR connected successfully")
-            
-            # Start scanning
-            if lidar_processor.start_scanning():
-                logger.info("LiDAR scanning started")
-            else:
-                logger.error("Failed to start LiDAR scanning")
-                return
-        else:
-            logger.warning("LiDAR not connected, continuing without LiDAR")
-            return
-        
-        while True:
-            try:
-                # Get LiDAR data for visualization and processing
-                lidar_data = lidar_processor.get_scan_data_for_visualization()
-                
-                with lidar_results_lock:
-                    lidar_results = lidar_data
-                
-                time.sleep(0.1)  # 10 Hz
-                
-            except Exception as e:
-                logger.error(f"LiDAR processing error: {e}")
-                time.sleep(0.5)
-                
-    except Exception as e:
-        logger.error(f"LiDAR processor thread failed: {e}")
-
-# --- Enhanced Processing Threads ---
-def yolo_processor_thread():
-    global processed_frame, detection_results
-    
-    try:
-        yolo_processor = YoloProcessor()
-        
-        while True:
-            start_time = time.time()
-            
-            with processed_frame_lock:
-                frame = processed_frame.copy() if processed_frame is not None else None
-            
-            if frame is not None:
-                try:
-                    proc_frame, det_results = yolo_processor.process_frame(frame)
-                    
-                    with processed_frame_lock:
-                        processed_frame = proc_frame
-                    with detection_results_lock:
-                        detection_results = det_results
-                    
-                    processing_time = time.time() - start_time
-                    update_performance_metrics(processing_time)
-                    
-                except Exception as e:
-                    logger.error(f"YOLO processing failed: {e}")
-            
-            time.sleep(0.1)
-            
-    except Exception as e:
-        logger.error(f"YOLO processor thread failed: {e}")
-
-def lane_detector_thread():
-    global processed_frame, lane_results
-    
-    try:
-        lane_detector = EnhancedLaneDetector()
-        
-        while True:
-            start_time = time.time()
-            
-            with processed_frame_lock:
-                frame = processed_frame.copy() if processed_frame is not None else None
-            
-            if frame is not None:
-                try:
-                    lane_res = lane_detector.detect_lanes_with_tracking(frame)
-                    
-                    with lane_results_lock:
-                        lane_results = {
-                            'lanes': [
-                                {
-                                    'lane_type': lane.lane_type,
-                                    'confidence': lane.confidence,
-                                    'curvature': lane.curvature,
-                                    'points_count': len(lane.points)
-                                }
-                                for lane in lane_res.lanes
-                            ],
-                            'lane_center_offset': lane_res.lane_center_offset,
-                            'lane_departure_warning': lane_res.lane_departure_warning,
-                            'lane_change_detected': lane_res.lane_change_detected,
-                            'road_curvature': lane_res.road_curvature,
-                            'detection_quality': lane_res.detection_quality
-                        }
-                    
-                    processing_time = time.time() - start_time
-                    logger.debug(f"Lane detection completed in {processing_time:.3f}s")
-                    
-                except Exception as e:
-                    logger.error(f"Lane detection failed: {e}")
-                    with lane_results_lock:
-                        lane_results = {'lanes': [], 'detection_quality': 0.0}
-            
-            time.sleep(0.1)
-            
-    except Exception as e:
-        logger.error(f"Lane detector thread failed: {e}")
-
-def depth_analyzer_thread():
-    global camera_manager, obstacle_results
-    
-    try:
-        # Import advanced depth processor
-        from core.algorithms.advanced_depth_processing import AdvancedDepthProcessor
-        depth_analyzer = AdvancedDepthProcessor()
-        
-        while True:
-            start_time = time.time()
-            
-            if camera_manager:
-                try:
-                    frame_data = camera_manager.capture_frame()
-                    
-                    if frame_data and camera_manager.has_depth_capability() and frame_data.depth is not None:
-                        # Use advanced depth processing
-                        depth_result = depth_analyzer.process_depth_map(
-                            frame_data.depth, 
-                            frame_data.confidence
-                        )
-                        
-                        with obstacle_results_lock:
-                            obstacle_results = {
-                                'obstacle_detected': depth_result['obstacle_count'] > 0,
-                                'obstacle_count': depth_result['obstacle_count'],
-                                'obstacles': [
-                                    {
-                                        'center': {'x': obs.center.x, 'y': obs.center.y, 'z': obs.center.z},
-                                        'size': obs.size,
-                                        'confidence': obs.confidence
-                                    }
-                                    for obs in depth_result['obstacles']
-                                ],
-                                'processing_quality': depth_result['processing_quality'],
-                                'status': "Advanced depth analysis active"
-                            }
-                    elif frame_data and frame_data.rgb is not None:
-                        # Fallback to basic analysis
-                        basic_result = _basic_obstacle_detection(frame_data.rgb)
-                        
-                        with obstacle_results_lock:
-                            obstacle_results = basic_result
-                    else:
-                        with obstacle_results_lock:
-                            obstacle_results = {
-                                'obstacle_detected': False,
-                                'obstacle_count': 0,
-                                'status': 'No camera data available'
-                            }
-                    
-                    processing_time = time.time() - start_time
-                    logger.debug(f"Depth analysis completed in {processing_time:.3f}s")
-                    
-                except Exception as e:
-                    logger.error(f"Depth analysis failed: {e}")
-                    with obstacle_results_lock:
-                        obstacle_results = {
-                            'obstacle_detected': False,
-                            'obstacle_count': 0,
-                            'status': f"Depth analysis error: {e}"
-                        }
-            
-            time.sleep(0.1)
-            
-    except Exception as e:
-        logger.error(f"Depth analyzer thread failed: {e}")
-
-def _basic_obstacle_detection(rgb_frame):
-    """Temel engel algılama (ZED olmadığında)"""
-    return {
-        'obstacle_detected': False,
-        'obstacle_count': 0,
-        'distance': 'N/A',
-        'status': 'Basic obstacle detection (no depth data)'
-    }
-
-def road_processor_thread():
-    global detection_results, lane_results, obstacle_results, lidar_results, direction_data, imu_data
-    
-    try:
-        road_processor = RoadProcessor()
-        
-        while True:
-            start_time = time.time()
-            
-            try:
-                with detection_results_lock:
-                    det = detection_results.copy()
-                with lane_results_lock:
-                    lanes = lane_results.copy()
-                with obstacle_results_lock:
-                    obs = obstacle_results.copy()
-                with lidar_results_lock:
-                    lidar = lidar_results.copy()
-                with imu_data_lock:
-                    imu = imu_data.copy()
-                
-                combined_data = {
-                    "detections": det,
-                    "lanes": lanes,
-                    "obstacles": obs,
-                    "lidar": lidar,
-                    "imu": imu,
-                    "timestamp": time.time()
-                }
-                
-                dir_data = road_processor.process_road(combined_data)
-                
-                # Add IMU-based enhancements
-                if imu and camera_manager and camera_manager.has_imu_capability():
-                    dir_data['vehicle_heading'] = imu.get('heading_degrees', 0.0)
-                    dir_data['vehicle_tilt'] = {
-                        'roll': imu.get('roll_degrees', 0.0),
-                        'pitch': imu.get('pitch_degrees', 0.0)
-                    }
-                    dir_data['is_moving'] = imu.get('is_moving', False)
-                    dir_data['speed_estimate'] = imu.get('speed_kmh', 0.0)
-                    dir_data['motion_confidence'] = imu.get('motion_confidence', 0.0)
-                
-                # Add LiDAR-based enhancements
-                if lidar and lidar.get('is_scanning', False):
-                    dir_data['lidar_obstacle_count'] = len(lidar.get('obstacles', []))
-                    dir_data['lidar_scan_quality'] = lidar.get('scan_frequency', 0.0)
-                
-                with direction_data_lock:
-                    direction_data = dir_data
-                
-                processing_time = time.time() - start_time
-                logger.debug(f"Road processing completed in {processing_time:.3f}s")
-                
-            except Exception as e:
-                logger.error(f"Road processing failed: {e}")
-            
-            time.sleep(0.1)
-            
-    except Exception as e:
-        logger.error(f"Road processor thread failed: {e}")
-
-def direction_controller_thread():
-    global direction_data
-    
-    try:
-        direction_controller = DirectionController()
-        
-        while True:
-            try:
-                with direction_data_lock:
-                    dir_data = direction_data.copy() if direction_data else None
-                
-                if dir_data:
-                    control_result = direction_controller.control(dir_data)
-                    
-                    # Update direction data with control result
-                    with direction_data_lock:
-                        direction_data.update(control_result)
-                
-            except Exception as e:
-                logger.error(f"Direction control failed: {e}")
-            
-            time.sleep(0.1)
-            
-    except Exception as e:
-        logger.error(f"Direction controller thread failed: {e}")
-
-def arduino_communicator_thread():
-    global direction_data, arduino_status
-    
-    try:
-        arduino_communicator = ArduinoCommunicator()
-        
-        while True:
-            try:
-                if arduino_communicator.is_connected():
-                    with arduino_status_lock:
-                        arduino_status = "Connected"
-                    
-                    with direction_data_lock:
-                        dir_data = direction_data.copy() if direction_data else None
-                    
-                    if dir_data:
-                        # Validate command through safety monitor
-                        safe_command = safety_monitor.validate_control_command(dir_data)
-                        arduino_communicator.send_data(safe_command)
-                else:
-                    with arduino_status_lock:
-                        arduino_status = "Disconnected"
-                    arduino_communicator.connect()
-                    
-            except Exception as e:
-                with arduino_status_lock:
-                    arduino_status = f"Error: {e}"
-                logger.error(f"Arduino Communication Error: {e}")
-            
-            time.sleep(1)
-            
-    except Exception as e:
-        logger.error(f"Arduino communicator thread failed: {e}")
-
-def start_processing_threads():
-    """Tüm işleme thread'lerini başlat"""
-    global system_initialized
-    
-    with initialization_lock:
-        if system_initialized:
-            logger.warning("System already initialized")
-            return
-        
-        logger.info("Starting enhanced processing system...")
-        
-        try:
-            # Start performance monitoring
-            memory_manager.start_monitoring()
-            async_processor.start()
-            
-            # Register safety callbacks
-            safety_monitor.register_health_callback(
-                SystemComponent.CAMERA, 
-                create_camera_health_callback()
-            )
-            safety_monitor.register_health_callback(
-                SystemComponent.ARDUINO, 
-                create_arduino_health_callback()
-            )
-            safety_monitor.register_health_callback(
-                SystemComponent.PROCESSING, 
-                create_processing_health_callback()
-            )
-            
-            # Start safety monitoring
-            safety_monitor.start_monitoring()
-            
-            # Start processing threads
-            threads = [
-                threading.Thread(target=camera_stream_thread, daemon=True, name="CameraStream"),
-                threading.Thread(target=lidar_processor_thread, daemon=True, name="LiDARProcessor"),
-                threading.Thread(target=yolo_processor_thread, daemon=True, name="YOLOProcessor"),
-                threading.Thread(target=lane_detector_thread, daemon=True, name="LaneDetector"),
-                threading.Thread(target=depth_analyzer_thread, daemon=True, name="DepthAnalyzer"),
-                threading.Thread(target=road_processor_thread, daemon=True, name="RoadProcessor"),
-                threading.Thread(target=direction_controller_thread, daemon=True, name="DirectionController"),
-                threading.Thread(target=arduino_communicator_thread, daemon=True, name="ArduinoComm")
-            ]
-            
-            for thread in threads:
-                thread.start()
-                logger.info(f"Started thread: {thread.name}")
-            
-            system_initialized = True
-            logger.info("All processing threads started successfully")
-            
-        except Exception as e:
-            logger.error(f"Failed to start processing threads: {e}")
-            raise
-
-def get_system_status():
-    """Sistem durumunu al"""
-    try:
-        camera_status = camera_manager.get_camera_status() if camera_manager else None
-        lidar_status = lidar_processor.get_status() if lidar_processor else None
-        
-        with arduino_status_lock:
-            arduino_stat = arduino_status
-        with detection_results_lock:
-            det_results = detection_results.copy()
-        with lane_results_lock:
-            lane_res = lane_results.copy()
-        with obstacle_results_lock:
-            obs_results = obstacle_results.copy()
-        with lidar_results_lock:
-            lidar_res = lidar_results.copy()
-        with direction_data_lock:
-            dir_data = direction_data.copy()
-        with imu_data_lock:
-            imu_dat = imu_data.copy()
-        with performance_metrics_lock:
-            perf_metrics = performance_metrics.copy()
-        
-        return {
-            "camera_status": {
-                "is_connected": camera_status.is_connected if camera_status else False,
-                "camera_type": camera_status.camera_type if camera_status else "None",
-                "resolution": camera_status.resolution if camera_status else (0, 0),
-                "fps": camera_status.fps if camera_status else 0.0,
-                "has_depth": camera_status.has_depth if camera_status else False,
-                "has_imu": camera_status.has_imu if camera_status else False
-            },
-            "lidar_status": lidar_status or {
-                "is_connected": False,
-                "is_scanning": False,
-                "scan_frequency": 0.0,
-                "obstacle_count": 0
-            },
-            "arduino_status": arduino_stat,
-            "detection_results": det_results,
-            "lane_results": lane_res,
-            "obstacle_results": obs_results,
-            "lidar_results": lidar_res,
-            "direction_data": dir_data,
-            "imu_data": imu_dat,
-            "safety_status": safety_monitor.get_safety_status(),
-            "performance_metrics": perf_metrics,
-            "timestamp": time.time()
-        }
-    except Exception as e:
-        logger.error(f"Failed to get system status: {e}")
-        return {
-            "error": str(e),
-            "timestamp": time.time()
-        }
 
 def main():
-    """Ana fonksiyon"""
-    logger.info("=== Dursun Enhanced System Starting ===")
-    
+    parser = argparse.ArgumentParser(description="Temel Otonom Sürüş ve Şerit Takip Sistemi")
+    parser.add_argument("--video", type=str, default="test_verileri/otoban.mp4", help="Giriş video dosyası")
+    parser.add_argument("--kamera", type=int, default=None, help="Canlı kamera cihaz ID (örn: 0)")
+    parser.add_argument("--mod", type=str, choices=["klasik", "kus_bakisi", "yolo", "hibrit", "yolo_serit"], default="hibrit",
+                        help="Çalışma modu: klasik, kus_bakisi, yolo, hibrit veya yolo_serit")
+    parser.add_argument("--debug", "--panel", dest="debug", action="store_true",
+                        help="Kuş bakışı ve maske içeren çoklu panel modunu açar")
+    parser.add_argument("--seri", action="store_true", help="Gerçek Arduino seri port bağlantısını açar")
+    parser.add_argument("--simulasyon", action="store_true", default=None, help="Donanımsız simüle mod")
+    parser.add_argument("--protokol", type=str, choices=["ascii_ha", "kat4_rv"], default=None,
+                        help="Arduino protokolü: ascii_ha (H110A-10) veya kat4_rv (r015v110)")
+    parser.add_argument("--cikti", type=str, default=None, help="İşlenmiş videoyu kaydetmek için dosya yolu")
+    parser.add_argument("--maks-kare", type=int, default=None, help="İşlenecek maksimum kare sayısı (testler için)")
+    parser.add_argument("--headless", action="store_true", help="GUI penceresi açmadan çalışır")
+    args = parser.parse_args()
+
+    cfg = yapilandirma_yukle()
+    w = cfg["kamera"]["genislik"]
+    h = cfg["kamera"]["yukseklik"]
+
+    # Simülasyon bayrağını belirle
+    simulasyon_aktif = True if args.simulasyon is True else (not args.seri)
+    protokol = args.protokol or cfg.get("seri_port", {}).get("protokol", "ascii_ha")
+
+    # Modülleri başlat
+    klasik_serit = KlasikSeritDedektoru(genislik=w, yukseklik=h)
+    kus_bakisi_serit = SeritDedektoru(genislik=w, yukseklik=h, perspektif=cfg.get("perspektif"))
+    yolo_dedektor = YOLODedektoru(
+        model_yolu=cfg["yolo"]["model_yolu"],
+        guven_esigi=cfg["yolo"]["guven_esigi"],
+        odak_uzakligi=cfg["yolo"].get("odak_uzakligi", 950.0)
+    )
+    yolo_serit = YOLOSeritDedektoru(
+        model_yolu=cfg.get("yolo_serit", {}).get("model_yolu", "modeller/yolov8_serit_seg.pt"),
+        guven_esigi=cfg.get("yolo_serit", {}).get("guven_esigi", 0.30),
+        genislik=w,
+        yukseklik=h
+    )
+    pid = PIDSurucu(
+        kp=cfg["pid"]["kp"],
+        ki=cfg["pid"]["ki"],
+        kd=cfg["pid"]["kd"],
+        max_aci=cfg["pid"]["max_direksiyon_acisi"],
+        taban_hiz=cfg["hiz"]["taban_hiz"],
+        min_hiz=cfg["hiz"]["min_hiz"]
+    )
+    gorsel = Gorsellestirici(genislik=w, yukseklik=h)
+    arduino = ArduinoHaberlesme(
+        port=cfg["seri_port"]["port"],
+        baudrate=cfg["seri_port"]["baudrate"],
+        simulasyon=simulasyon_aktif,
+        protokol=protokol
+    )
+
+    # Video kaynağı
+    kaynak = args.kamera if args.kamera is not None else args.video
+    cap = cv2.VideoCapture(kaynak)
+
+    if not cap.isOpened():
+        print(f"[HATA] Video kaynağı açılamadı: {kaynak}")
+        return
+
+    writer = None
+    if args.cikti:
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out_w = int(w * (16 / 9) + w * (4 / 3) * 0.5) if args.debug else w
+        writer = cv2.VideoWriter(args.cikti, fourcc, 30.0, (out_w, h))
+
+    print("=" * 65)
+    print("  TEMEL OTONOM SÜRÜŞ SİSTEMİ BAŞLATILDI")
+    print(f"  Mod: {args.mod.upper()} | Kaynak: {kaynak} | Çoklu Panel: {args.debug}")
+    print(f"  Donanım: {'CANLI ARDUINO' if not simulasyon_aktif else 'SİMÜLASYON'} (Protokol: {protokol})")
+    print("=" * 65)
+
+    onceki_zaman = time.time()
+    kare_sayaci = 0
+
     try:
-        start_processing_threads()
-        logger.info("Enhanced system initialized. Press Ctrl+C to exit.")
-        
-        # Main monitoring loop
         while True:
-            time.sleep(1)
-            
-            # Log system status periodically
-            if int(time.time()) % 30 == 0:  # Every 30 seconds
-                try:
-                    with performance_metrics_lock:
-                        fps = performance_metrics['fps']
-                    
-                    safety_status = safety_monitor.get_safety_status()
-                    camera_status = camera_manager.get_camera_status() if camera_manager else None
-                    camera_type = camera_status.camera_type if camera_status else "None"
-                    lidar_status = lidar_processor.get_status() if lidar_processor else {"is_connected": False}
-                    lidar_connected = "Connected" if lidar_status.get('is_connected', False) else "Disconnected"
-                    
-                    logger.info(f"System Status - FPS: {fps:.1f}, Camera: {camera_type}, LiDAR: {lidar_connected}, Safety: {safety_status['current_state']}")
-                except Exception as e:
-                    logger.error(f"Status logging failed: {e}")
-                
-    except KeyboardInterrupt:
-        logger.info("Shutting down enhanced system...")
-        
-        # Cleanup
-        try:
-            safety_monitor.stop_monitoring()
-            async_processor.stop()
-            memory_manager.stop_monitoring()
-            
-            if camera_manager:
-                camera_manager.stop()
-            
-            if lidar_processor:
-                lidar_processor.disconnect()
-                
-        except Exception as e:
-            logger.error(f"Cleanup failed: {e}")
-        
-        logger.info("Enhanced system shutdown complete")
-    except Exception as e:
-        logger.error(f"System error: {e}")
-        raise
+            ret, kare = cap.read()
+            if not ret:
+                # Video bittiğinde başa sar (canlı kamera değilse)
+                if args.kamera is None and args.maks_kare is None:
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                    ret, kare = cap.read()
+                    if not ret:
+                        break
+                else:
+                    break
+
+            kare = cv2.resize(kare, (w, h))
+            simdiki_zaman = time.time()
+            fps = 1.0 / (simdiki_zaman - onceki_zaman) if (simdiki_zaman - onceki_zaman) > 0 else 30.0
+            onceki_zaman = simdiki_zaman
+
+            # 1. Şerit Tespiti
+            serit_bilgisi = None
+            kus_bakisi = None
+            maske = None
+            egrilik = None
+
+            if args.mod in ["klasik", "hibrit"]:
+                serit_bilgisi = klasik_serit.tespit_et(kare)
+                kus_bakisi, maske, kb_bilgi = kus_bakisi_serit.isle(kare)
+                sapma = serit_bilgisi["sapma_piksel"]
+                egrilik = kb_bilgi.get("egrilik_m")
+            elif args.mod == "kus_bakisi":
+                kus_bakisi, maske, kb_bilgi = kus_bakisi_serit.isle(kare)
+                serit_bilgisi = kb_bilgi
+                sapma = kb_bilgi["sapma_piksel"]
+                egrilik = kb_bilgi.get("egrilik_m")
+            elif args.mod == "yolo_serit":
+                serit_bilgisi = yolo_serit.tespit_et(kare)
+                sapma = serit_bilgisi["sapma_piksel"]
+                maske = serit_bilgisi["maske"]
+                kus_bakisi = cv2.cvtColor(maske, cv2.COLOR_GRAY2BGR)
+            else:
+                sapma = 0.0
+
+            # 2. Nesne, Tabela ve Araç Tespiti
+            tespitler = []
+            if args.mod in ["yolo", "hibrit"]:
+                tespitler = yolo_dedektor.tespit_et(kare)
+
+            # 3. PID Karar Mekanizması
+            direksiyon_acisi = pid.direksiyon_hesapla(sapma)
+            hiz, durum = pid.hiz_belirle(direksiyon_acisi, tespitler)
+
+            # 4. Donanım / Arduino Komut İletimi
+            arduino.komut_gonder(hiz, direksiyon_acisi)
+
+            # 5. Görselleştirme: Şerit Koridoru + Araç Gidiş Yolu (Trajektori Bandı)
+            if serit_bilgisi:
+                islenmis_kare = gorsel.serit_koridoru_ciz(kare, serit_bilgisi)
+            else:
+                islenmis_kare = kare.copy()
+
+            # Algılanan nesneleri ve mesafeleri çiz
+            for t in tespitler:
+                x1, y1, x2, y2 = t["kutu"]
+                etiket = t["etiket"]
+                mesafe = t.get("mesafe", 0)
+                cv2.rectangle(islenmis_kare, (x1, y1), (x2, y2), (0, 235, 255), 2)
+                cv2.putText(islenmis_kare, f"{etiket} {mesafe:.1f}m", (x1, y1 - 8),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 235, 255), 1, cv2.LINE_AA)
+
+            en_yakin = f"{tespitler[0]['etiket']}: {tespitler[0]['mesafe']:.1f}m" if tespitler else None
+            islenmis_kare = gorsel.telemetri_paneli_ciz(
+                islenmis_kare, direksiyon_acisi, hiz, durum, sapma, fps, en_yakin, egrilik
+            )
+
+            if args.debug and kus_bakisi is not None and maske is not None:
+                gosterim = gorsel.coklu_panel_olustur(islenmis_kare, kus_bakisi, maske)
+            else:
+                gosterim = islenmis_kare
+
+            if writer is not None:
+                writer.write(cv2.resize(gosterim, (writer.get(cv2.CAP_PROP_FRAME_WIDTH), h)) if args.debug else gosterim)
+
+            if not args.headless:
+                cv2.imshow("Temel Otonom", gosterim)
+                tus = cv2.waitKey(1) & 0xFF
+                if tus == ord("q") or tus == 27:
+                    break
+
+            kare_sayaci += 1
+            if args.maks_kare is not None and kare_sayaci >= args.maks_kare:
+                break
+
+    finally:
+        cap.release()
+        if writer is not None:
+            writer.release()
+        if not args.headless:
+            cv2.destroyAllWindows()
+        arduino.kapat()
+        print(f"[BILGI] Sistem kapatıldı. Toplam işlenen kare: {kare_sayaci}")
+
 
 if __name__ == "__main__":
     main()
