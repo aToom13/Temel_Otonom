@@ -1,8 +1,8 @@
 # Temel Otonom Sürüş ve Görüntü İşleme Sistemi
 
-OpenCV, Ters Perspektif Eşleme (IPM), Hough Dönüşümü ve YOLOv8 tabanlı; gerçek zamanlı şerit takibi, yönlendirici araç gidiş yolu yörüngesi, anti-windup PID kontrollü direksiyon yönetimi ve derin öğrenmeli nesne/araç mesafe kestirimi altyapısı.
+Python, OpenCV ve YOLOv8 ile kamera görüntüsünden şerit ve nesne tespiti, yaklaşık mesafe kestirimi ve PID tabanlı direksiyon komutları üreten deneysel bir sürüş projesi. Video dosyalarıyla donanımsız çalıştırılabilir; Arduino bağlantısıyla motor ve servo komutları gönderebilir.
 
-Bu proje; robotik kara araçları (UGV), Teknofest Robotaksi yarışma araçları ve model otonom araçlar için kamera görüntüsü üzerinden yol sınırlarını çıkarıp aracı şerit ortasında tutmak, yoldaki araç/engellere olan mesafeyi trigonometrik olarak hesaplamak, çift Arduino seri protokolü üzerinden motor ve servoları sürmek ve sürüş telemetrisini canlı bir Glassmorphism HUD arayüzünde sunmak amacıyla geliştirilmiştir.
+Görüntü işleme, kontrol algoritmaları ve seri haberleşmeyi aynı akışta denemek için geliştirilmiştir.
 
 ---
 
@@ -15,6 +15,73 @@ Bu proje; robotik kara araçları (UGV), Teknofest Robotaksi yarışma araçlar�
 | Geliştirici Çoklu Görünüm Paneli | Kuş Bakışı (IPM & Kayan Pencere) |
 | :---: | :---: |
 | ![Çoklu Panel](gorseller/coklu_panel.jpg) | ![Kuş Bakışı](gorseller/kus_bakisi.jpg) |
+
+---
+
+## Kurulum ve Çalıştırma
+
+Python 3 ve GUI kullanımı için masaüstü oturumu gerekir. Komutları proje kökünden çalıştırın.
+
+### 1. Bağımlılıkların Yüklenmesi
+
+```bash
+git clone https://github.com/aToom13/Temel_Otonom.git
+cd Temel_Otonom
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 2. Sistemi Çalıştırma
+
+Varsayılan olarak seri bağlantı kapalıdır; `--seri` gerçek donanıma komut gönderimini açar. Önce video ile deneyin. Model yolları, kamera, PID ve seri port ayarları [config.yaml](config.yaml) dosyasındadır.
+
+```bash
+# Hibrit Mod (Klasik Şerit + YOLO Araç/Mesafe Takibi + HUD Trajektori)
+python main.py --mod hibrit --video test_verileri/otoban.mp4
+
+# Geliştirici / Debug Modu (Kuş Bakışı ve İkili Maske Paneli Dahil)
+python main.py --mod hibrit --video test_verileri/otoban.mp4 --debug
+
+# Saf Klasik Görüntü İşleme Modu (Canny + Hough)
+python main.py --mod klasik --video test_verileri/otoban.mp4
+
+# Kuş Bakışı Kayan Pencere Modu (IPM + 2. Derece Polinom)
+python main.py --mod kus_bakisi --video test_verileri/golge.webm
+
+# Canlı USB Kamera ile Çalıştırma
+python main.py --kamera 0 --mod hibrit
+
+# YOLOv8 Semantik Şerit Takibi Modu (Ağaç & Çadır Gölgelerine Dayanıklı)
+python main.py --mod yolo_serit --video test_verileri/golge.webm
+
+# Bağımsız YOLO Şerit Test Scripti
+python yolo_serit_test.py --video test_verileri/golge.webm
+
+# Arduino Donanım Bağlantısı ile Çalıştırma (Kat4 Protokolü)
+python main.py --video test_verileri/otoban.mp4 --seri --protokol kat4_rv
+```
+
+### 3. Kalibrasyon Araçları
+
+* **Perspektif ROI Kalibrasyonu:**
+  ```bash
+  python araclar/roi_secici.py --kaynak test_verileri/otoban.mp4
+  ```
+  *(Sırasıyla: Sol-Üst, Sol-Alt, Sağ-Üst, Sağ-Alt noktalarına tıklayın; `r` ile sıfırlayın).*
+
+* **HSV Renk Eşik Kalibrasyonu:**
+  ```bash
+  python araclar/hsv_ayar.py --kaynak test_verileri/otoban.mp4
+  ```
+
+GUI açmadan sınırlı sayıda kare işlemek için:
+
+```bash
+python main.py --mod hibrit --video test_verileri/otoban.mp4 --headless --maks-kare 120 --simulasyon
+```
+
+Gerçek donanım için önce `config.yaml` içindeki port ve baudrate değerlerini, Arduino yazılımını ve seçili protokolü eşleştirin.
 
 ---
 
@@ -37,16 +104,16 @@ Proje, geleneksel görüntü işlemeden başlayıp derin öğrenme ve donanım e
   $$R_{\text{curve}} = \frac{\left(1 + (2Ay + B)^2\right)^{3/2}}{|2A|}$$
 
 ### 3. Aşama: Derin Öğrenme / YOLOv8 ve Mesafe Kestirimi
-* **Güneş - Gölge Problemi & YOLOv8 Şerit Segmentasyonu:** Geleneksel HSV renk filtreleri, yarışma parkurlarındaki ağaç ve çadır gölgelerinde ($V$ parlaklık kanalının ani düşmesi) şerit çizgilerini kaybeder veya güneş altındaki açık renkli asfaltı/bariyerleri şerit zannederek hataya düşer. Bu sorunu çözmek için eğitilen **YOLOv8 Şerit Segmentasyon Modeli (`modeller/yolov8_serit_seg.pt`)** ve [`core/yolo_serit.py`](file:///home/atom13/Projeler/Temel_Otonom/core/yolo_serit.py), renk eşikleri yerine derin konvolüsyonel öznitelikleri ve yol geometrisini baz alarak derin gölgeler altında dahi (`test_verileri/golge.webm`) kesintisiz şerit sürekliliği sağlar.
+* **Güneş - Gölge Problemi & YOLOv8 Şerit Segmentasyonu:** Geleneksel HSV renk filtreleri, yarışma parkurlarındaki ağaç ve çadır gölgelerinde ($V$ parlaklık kanalının ani düşmesi) şerit çizgilerini kaybeder veya güneş altındaki açık renkli asfaltı/bariyerleri şerit zannederek hataya düşer. Bu sorunu çözmek için eğitilen **YOLOv8 Şerit Segmentasyon Modeli (`modeller/yolov8_serit_seg.pt`)** ve [`core/yolo_serit.py`](core/yolo_serit.py), renk eşiklerine alternatif bir şerit segmentasyonu yaklaşımı sunar. Gölge içeren örnek kayıt `test_verileri/golge.webm` dosyasındadır; farklı ışık ve yol koşulları için ayrıca değerlendirme gerekir.
 * **Nesne & Araç Tespiti:** YOLOv8 mimarisi ile öndeki araçlar (`car`, `truck`, `bus`) ve trafik işaretleri eş zamanlı taranır.
-* **Pinhole Kamera Mesafe Kestirimi:** Bounding box piksel genişliği ($w_{px}$), kameranın odak uzaklığı ($f$) ve aracın gerçek dünyadaki ortalama genişliği ($W \approx 1.85\text{ m}$) kullanılarak araca olan gerçek mesafe hesaplanır:
+* **Pinhole Kamera Mesafe Kestirimi:** Bounding box piksel genişliği ($w_{px}$), kameranın odak uzaklığı ($f$) ve aracın gerçek dünyadaki ortalama genişliği ($W \approx 1.85\text{ m}$) kullanılarak araca olan yaklaşık mesafe kestirilir:
   $$\text{Mesafe (m)} = \frac{W_{\text{gerçek}} \times f}{w_{\text{kutu}}}$$
 
 ### 4. Aşama: PID Kontrol & Donanım Haberleşmesi
 * **Merkez Sapma:** Aracın kamera merkezi ile şerit merkezi arasındaki piksel farkı ($e$) hesaplanır.
 * **Anti-Windup PID Direksiyon:** Doyum korumalı PID algoritması ile servo dönüş açısı ($-35^\circ$ ile $+35^\circ$ arası) üretilir:
   $$u(t) = K_p \cdot e(t) + K_i \int e(t)dt + K_d \cdot \frac{de(t)}{dt}$$
-* **Akıllı Hız Kontrolü:** Öndeki araç takip mesafesi ($<8\text{ m}$) veya viraj keskinliğine göre motor PWM değeri dinamik olarak azaltılır; acil durumlarda araç güvenle durdurulur.
+* **Akıllı Hız Kontrolü:** Öndeki araç takip mesafesi ($<8\text{ m}$) veya viraj keskinliğine göre motor PWM değeri dinamik olarak azaltılır; yakın engel veya durma koşullarında sıfır hız komutu üretilir. Bu davranış fiziksel duruş garantisi değildir.
 * **Çift Arduino Seri Protokolü:**
   1. *Standart ASCII Protokolü:* `H<hiz>A<aci>\n` (Örnek: `H110A-12.5\n`)
   2. *Kat4 Teknofest Robotaksi Protokolü:* `[f/r/l]<aci>v<hiz>\n` (Örnek: `r015v110\n`, `l020v095\n`, `f000v120\n`)
@@ -97,56 +164,6 @@ Temel_Otonom/
 
 ---
 
-## Kurulum ve Çalıştırma
-
-### 1. Bağımlılıkların Yüklenmesi
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-### 2. Sistemi Çalıştırma
-```bash
-# Hibrit Mod (Klasik Şerit + YOLO Araç/Mesafe Takibi + HUD Trajektori)
-python main.py --mod hibrit --video test_verileri/otoban.mp4
-
-# Geliştirici / Debug Modu (Kuş Bakışı ve İkili Maske Paneli Dahil)
-python main.py --mod hibrit --video test_verileri/otoban.mp4 --debug
-
-# Saf Klasik Görüntü İşleme Modu (Canny + Hough)
-python main.py --mod klasik --video test_verileri/otoban.mp4
-
-# Kuş Bakışı Kayan Pencere Modu (IPM + 2. Derece Polinom)
-python main.py --mod kus_bakisi --video test_verileri/golge.webm
-
-# Canlı USB Kamera ile Çalıştırma
-python main.py --kamera 0 --mod hibrit
-
-# YOLOv8 Semantik Şerit Takibi Modu (Ağaç & Çadır Gölgelerine Dayanıklı)
-python main.py --mod yolo_serit --video test_verileri/golge.webm
-
-# Bağımsız YOLO Şerit Test Scripti
-python yolo_serit_test.py --video test_verileri/golge.webm
-
-# Arduino Donanım Bağlantısı ile Çalıştırma (Kat4 Protokolü)
-python main.py --video test_verileri/otoban.mp4 --seri --protokol kat4_rv
-```
-
-### 3. Kalibrasyon Araçları
-* **Perspektif ROI Kalibrasyonu:**
-  ```bash
-  python araclar/roi_secici.py --kaynak test_verileri/otoban.mp4
-  ```
-  *(Sırasıyla: Sol-Üst, Sol-Alt, Sağ-Üst, Sağ-Alt noktalarına tıklayın; `r` ile sıfırlayın).*
-
-* **HSV Renk Eşik Kalibrasyonu:**
-  ```bash
-  python araclar/hsv_ayar.py --kaynak test_verileri/otoban.mp4
-  ```
-
----
-
 ## Donanım Bağlantı Şeması ve Seri Protokol
 
 ### Arduino Pin Atamaları
@@ -174,7 +191,9 @@ python main.py --video test_verileri/otoban.mp4 --seri --protokol kat4_rv
 
 ## Birim ve Entegrasyon Testleri
 
-Tüm algoritmaların, sınır durumlarının (boş kare, aşırı ışık, geçersiz kutu, vb.) ve video akışlarının otomatik doğrulanması için test paketini çalıştırın:
+Mevcut test paketi [tests/test_pipeline.py](tests/test_pipeline.py) dosyasındadır:
+
+**Bilinen uyumsuzluk:** Test dosyası `ArduinoBaglanti` adını içe aktarıyor; güncel modüldeki sınıf `ArduinoHaberlesme`. Test paketinin Arduino API’sine uyarlanması gerekir. Test giriş noktası:
 
 ```bash
 python -m unittest tests/test_pipeline.py -v
@@ -182,8 +201,14 @@ python -m unittest tests/test_pipeline.py -v
 
 ---
 
-## Lisans ve Yazar
+## Sınırlar
+
+- Mesafe ve eğrilik değerleri kamera kalibrasyonu ile varsayılan fiziksel boyutlara bağlıdır.
+- Şerit ve nesne modellerinin başarımı veri setine, ışığa ve kamera açısına göre değişir.
+- Gerçek araç denemeleri kontrollü ortam ve bağımsız acil durdurma düzeni gerektirir.
+
+## Yazar ve lisans durumu
 
 - **Geliştirici:** aToom13 (<200818akif@gmail.com>)
-- **Lisans:** MIT Lisansı
+- Depoda henüz ayrı bir `LICENSE` dosyası bulunmuyor.
 
